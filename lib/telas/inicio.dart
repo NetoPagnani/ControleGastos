@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 
+import '../core/tema.dart';
 import '../core/usuario_atual.dart';
 import '../dados/relatorios.dart';
 import '../dados/repositorios.dart';
@@ -117,7 +118,8 @@ class _TelaInicioState extends State<TelaInicio> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('R\$ ${_reais(totalMes)} gastos este mês', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('R\$ ${_reais(totalMes)}', style: estiloValorGrande(tamanho: 28)),
+            const Text('gastos este mês', style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 6),
             if (percentual == null)
               const Text('Cadastre sua renda em Configurações para ver o percentual comprometido.')
@@ -129,7 +131,7 @@ class _TelaInicioState extends State<TelaInicio> {
                 child: LinearProgressIndicator(
                   value: (percentual / 100).clamp(0, 1),
                   minHeight: 8,
-                  color: percentual >= 100 ? Colors.red : Colors.orange,
+                  color: percentual >= 100 ? corAlerta : corAviso,
                 ),
               ),
             ],
@@ -142,9 +144,9 @@ class _TelaInicioState extends State<TelaInicio> {
   Widget _cartaoAlertaPadrao(AlertaPadrao a, Map<String, String> nomeCategoria) {
     final nome = nomeCategoria[a.categoriaId] ?? 'Categoria';
     return Card(
-      color: Colors.red.shade50,
+      color: corAlertaFundo,
       child: ListTile(
-        leading: const Icon(Icons.trending_up, color: Colors.red),
+        leading: const Icon(Icons.trending_up, color: corAlerta),
         title: Text('$nome fugiu do padrão'),
         subtitle: Text('R\$ ${_reais(a.atualCentavos)} este mês · sua média é R\$ ${_reais(a.mediaCentavos)}'),
       ),
@@ -154,9 +156,9 @@ class _TelaInicioState extends State<TelaInicio> {
   Widget _cartaoAlertaPequenos(AlertaPequenos a, Map<String, String> nomeCategoria) {
     final nome = nomeCategoria[a.categoriaId] ?? 'Categoria';
     return Card(
-      color: Colors.amber.shade50,
+      color: corAvisoFundo,
       child: ListTile(
-        leading: const Icon(Icons.repeat, color: Colors.amber),
+        leading: const Icon(Icons.repeat, color: corAviso),
         title: Text('${a.quantidade}× $nome = R\$ ${_reais(a.somaCentavos)}'),
         subtitle: const Text('Muitos gastos pequenos que somam'),
       ),

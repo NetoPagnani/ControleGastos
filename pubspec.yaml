@@ -39,6 +39,9 @@ dependencies:
   uuid: ^4.6.0
   fl_chart: ^1.2.0
   supabase_flutter: ^2.18.0
+  google_fonts: ^6.2.1
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

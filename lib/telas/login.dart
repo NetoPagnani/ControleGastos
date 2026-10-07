@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/erros_auth.dart';
+
 /// E-mail/senha e Google. O AuthGate troca esta tela pelo app assim que
 /// o Supabase Auth confirmar a sessao.
 class TelaLogin extends StatefulWidget {
@@ -16,11 +18,13 @@ class _TelaLoginState extends State<TelaLogin> {
   bool _criandoConta = false;
   bool _carregando = false;
   String? _erro;
+  String? _aviso;
 
   Future<void> _entrarOuCriar() async {
     setState(() {
       _carregando = true;
       _erro = null;
+      _aviso = null;
     });
     try {
       final auth = Supabase.instance.client.auth;
@@ -30,7 +34,7 @@ class _TelaLoginState extends State<TelaLogin> {
         await auth.signInWithPassword(email: _email.text.trim(), password: _senha.text);
       }
     } on AuthException catch (e) {
-      setState(() => _erro = e.message);
+      setState(() => _erro = mensagemAuth(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -40,11 +44,60 @@ class _TelaLoginState extends State<TelaLogin> {
     setState(() {
       _carregando = true;
       _erro = null;
+      _aviso = null;
     });
     try {
       await Supabase.instance.client.auth.signInWithOAuth(OAuthProvider.google);
     } on AuthException catch (e) {
-      setState(() => _erro = e.message);
+      setState(() => _erro = mensagemAuth(e));
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _esqueciSenha() async {
+    final controlador = TextEditingController(text: _email.text);
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar senha'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Digite o e-mail da sua conta. Vamos mandar um link pra você criar uma senha nova.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controlador,
+              decoration: const InputDecoration(labelText: 'E-mail'),
+              keyboardType: TextInputType.emailAddress,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enviar link')),
+        ],
+      ),
+    );
+
+    if (confirmou != true || controlador.text.trim().isEmpty) return;
+
+    setState(() {
+      _carregando = true;
+      _erro = null;
+      _aviso = null;
+    });
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        controlador.text.trim(),
+        redirectTo: Uri.base.toString(),
+      );
+      // Mensagem igual tenha dado certo ou o e-mail nao exista: assim
+      // ninguem descobre por aqui quais e-mails tem conta no app.
+      setState(() => _aviso = 'Se esse e-mail tiver uma conta, enviamos um link de recuperação pra ele.');
+    } on AuthException catch (e) {
+      setState(() => _erro = mensagemAuth(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -75,11 +128,22 @@ class _TelaLoginState extends State<TelaLogin> {
                   obscureText: true,
                   onSubmitted: (_) => _entrarOuCriar(),
                 ),
-                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _carregando ? null : _esqueciSenha,
+                    child: const Text('Esqueci minha senha'),
+                  ),
+                ),
                 if (_erro != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(_erro!, style: const TextStyle(color: Colors.red)),
+                    child: Text(_erro!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  ),
+                if (_aviso != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(_aviso!, textAlign: TextAlign.center),
                   ),
                 SizedBox(
                   width: double.infinity,

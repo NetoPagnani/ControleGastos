@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/app_config.dart';
+import 'core/tema.dart';
 import 'dados/banco.dart';
 import 'telas/auth_gate.dart';
 
@@ -19,7 +21,15 @@ class ControleGastosApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Controle de Gastos',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF10B981), useMaterial3: true),
+      debugShowCheckedModeBanner: false,
+      theme: construirTema(),
+      locale: const Locale('pt', 'BR'),
+      supportedLocales: const [Locale('pt', 'BR')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: FutureBuilder<PowerSyncDatabase>(
         future: abrirBanco(),
         builder: (context, snap) {

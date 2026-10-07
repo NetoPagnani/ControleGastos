@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 
+import '../core/tema.dart';
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
@@ -85,48 +86,58 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
 
   Widget _passoValor() {
     const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
-    return Column(
-      children: [
-        Expanded(
-          child: Center(
-            child: Text(_valorFormatado, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
-          ),
-        ),
-        TextButton(
-          onPressed: _escolherData,
-          child: Text(
-            _data.day == DateTime.now().day &&
-                    _data.month == DateTime.now().month &&
-                    _data.year == DateTime.now().year
-                ? 'hoje · toque pra mudar a data'
-                : '${_data.day}/${_data.month}/${_data.year} · toque pra mudar',
-          ),
-        ),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            for (final t in teclas)
-              t.isEmpty
-                  ? const SizedBox.shrink()
-                  : InkWell(
-                      onTap: () => _apertarTecla(t),
-                      child: Center(child: Text(t, style: const TextStyle(fontSize: 26))),
-                    ),
-          ],
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _centavos > 0 ? () => setState(() => _etapa = 1) : null,
-              child: const Text('Continuar'),
+    // Nada de Expanded no topo: numa janela baixa isso estourava a altura
+    // (overflow). O teclado agora fica dentro de um Expanded que pode
+    // encolher — e, se precisar, ele mesmo rola, a tela nunca mais quebra.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Text(_valorFormatado, style: estiloValorGrande()),
+          TextButton(
+            onPressed: _escolherData,
+            child: Text(
+              _data.day == DateTime.now().day &&
+                      _data.month == DateTime.now().month &&
+                      _data.year == DateTime.now().year
+                  ? 'hoje · toque pra mudar a data'
+                  : '${_data.day}/${_data.month}/${_data.year} · toque pra mudar',
             ),
           ),
-        ),
-      ],
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 3,
+              childAspectRatio: 1.7,
+              children: [
+                for (final t in teclas)
+                  t.isEmpty
+                      ? const SizedBox.shrink()
+                      : InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _apertarTecla(t),
+                          child: Center(
+                            child: Text(
+                              t,
+                              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _centavos > 0 ? () => setState(() => _etapa = 1) : null,
+                child: const Text('Continuar'),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

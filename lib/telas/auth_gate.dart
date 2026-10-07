@@ -6,6 +6,7 @@ import '../core/app_config.dart';
 import '../dados/conector_sincronizacao.dart';
 import '../dados/repositorios.dart';
 import 'login.dart';
+import 'nova_senha.dart';
 import 'principal.dart';
 
 /// Mostra o login enquanto nao ha sessao. Depois de logar, garante o
@@ -21,6 +22,12 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snap) {
+        // Link de "esqueci minha senha" clicado: o Supabase ja criou uma
+        // sessao temporaria so pra isso. Mostra a tela de nova senha antes
+        // de qualquer outra coisa, mesmo com sessao ativa.
+        if (snap.data?.event == AuthChangeEvent.passwordRecovery) {
+          return const TelaNovaSenha();
+        }
         final sessao = Supabase.instance.client.auth.currentSession;
         if (sessao == null) {
           // Sem sessao: nao ha para quem sincronizar. Desconectar e
