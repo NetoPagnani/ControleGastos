@@ -59,6 +59,53 @@ class CategoriasRepositorio {
                 ),
             ]);
   }
+
+  /// Categoria criada pela pessoa (fora das 9 padrao). Id aleatorio: nao
+  /// precisa ser deterministico porque so existe depois que a pessoa pediu.
+  Future<void> criar(String usuarioId, String nome) async {
+    final agora = agoraIso();
+    final maiorOrdem = await _db.get(
+      'SELECT COALESCE(MAX(ordem), -1) AS maior FROM categorias WHERE usuario_id = ?',
+      [usuarioId],
+    );
+    await _db.execute(
+      'INSERT INTO categorias (id, usuario_id, nome, icone, cor, ordem, arquivada, criado_em, atualizado_em) '
+      'VALUES (?, ?, ?, NULL, NULL, ?, 0, ?, ?)',
+      [_uuid.v4(), usuarioId, nome, (maiorOrdem['maior'] as int) + 1, agora, agora],
+    );
+  }
+
+  Future<void> arquivar(String id) async {
+    await _db.execute(
+      'UPDATE categorias SET arquivada = 1, atualizado_em = ? WHERE id = ?',
+      [agoraIso(), id],
+    );
+  }
+}
+
+class PerfilRepositorio {
+  PerfilRepositorio(this._db);
+
+  final PowerSyncDatabase _db;
+
+  /// Renda de referencia. Nao e transacao, so um numero que a pessoa ajusta
+  /// quando muda de salario; destrava o percentual comprometido no Inicio.
+  Stream<int> observarRendaCentavos(String usuarioId) {
+    return _db
+        .watch('SELECT renda_mensal_centavos FROM perfis WHERE id = ?', parameters: [usuarioId])
+        .map((rs) => rs.isEmpty ? 0 : (rs.first['renda_mensal_centavos'] as int? ?? 0));
+  }
+
+  Future<void> definirRendaCentavos(String usuarioId, int centavos) async {
+    final agora = agoraIso();
+    await _db.execute(
+      'INSERT INTO perfis (id, nome, renda_mensal_centavos, criado_em, atualizado_em) '
+      'VALUES (?, NULL, ?, ?, ?) '
+      'ON CONFLICT(id) DO UPDATE SET renda_mensal_centavos = excluded.renda_mensal_centavos, '
+      'atualizado_em = excluded.atualizado_em',
+      [usuarioId, centavos, agora, agora],
+    );
+  }
 }
 
 class ContasRepositorio {
