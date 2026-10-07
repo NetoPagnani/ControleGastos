@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
@@ -56,6 +57,23 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  Supabase.instance.client.auth.currentUser?.email ?? '',
+                  style: const TextStyle(color: Colors.grey),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => Supabase.instance.client.auth.signOut(),
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Sair'),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
           const Text('Renda mensal de referência', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           const Text(

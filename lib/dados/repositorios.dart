@@ -88,6 +88,17 @@ class PerfilRepositorio {
 
   final PowerSyncDatabase _db;
 
+  /// Cria a linha do perfil se ainda nao existir, sem tocar na renda se
+  /// ja existir. Chamado a cada login; so o primeiro realmente insere.
+  Future<void> garantirPerfil(String usuarioId) async {
+    final agora = agoraIso();
+    await _db.execute(
+      'INSERT INTO perfis (id, nome, renda_mensal_centavos, criado_em, atualizado_em) '
+      'VALUES (?, NULL, 0, ?, ?) ON CONFLICT(id) DO NOTHING',
+      [usuarioId, agora, agora],
+    );
+  }
+
   /// Renda de referencia. Nao e transacao, so um numero que a pessoa ajusta
   /// quando muda de salario; destrava o percentual comprometido no Inicio.
   Stream<int> observarRendaCentavos(String usuarioId) {

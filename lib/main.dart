@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/usuario_atual.dart';
+import 'core/app_config.dart';
 import 'dados/banco.dart';
-import 'dados/repositorios.dart';
-import 'telas/principal.dart';
+import 'telas/auth_gate.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(url: AppConfig.supabaseUrl, publishableKey: AppConfig.supabaseChavePublica);
   runApp(const ControleGastosApp());
 }
 
 class ControleGastosApp extends StatelessWidget {
   const ControleGastosApp({super.key});
-
-  Future<PowerSyncDatabase> _iniciar() async {
-    final db = await abrirBanco();
-    // Sem login ainda (Fase 5): garante as categorias padrao uma vez.
-    await CategoriasRepositorio(db).garantirPadroes(usuarioAtualId);
-    return db;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +21,7 @@ class ControleGastosApp extends StatelessWidget {
       title: 'Controle de Gastos',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF10B981), useMaterial3: true),
       home: FutureBuilder<PowerSyncDatabase>(
-        future: _iniciar(),
+        future: abrirBanco(),
         builder: (context, snap) {
           if (snap.hasError) {
             return Scaffold(body: Center(child: Text('Erro ao abrir o banco: ${snap.error}')));
@@ -34,7 +29,7 @@ class ControleGastosApp extends StatelessWidget {
           if (!snap.hasData) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return TelaPrincipal(db: snap.data!);
+          return AuthGate(db: snap.data!);
         },
       ),
     );
