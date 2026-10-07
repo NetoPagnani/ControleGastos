@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/app_config.dart';
 import '../dados/conector_sincronizacao.dart';
 import '../dados/repositorios.dart';
 import 'login.dart';
@@ -51,9 +52,12 @@ class _PreparandoContaState extends State<_PreparandoConta> {
   Future<void> _preparar() async {
     await PerfilRepositorio(widget.db).garantirPerfil(widget.usuarioId);
     await CategoriasRepositorio(widget.db).garantirPadroes(widget.usuarioId);
-    // So conecta depois de garantir que o perfil/categorias existem
-    // localmente, para o primeiro upload nao chegar vazio no servidor.
-    await widget.db.connect(connector: ConectorSupabase());
+    // Enquanto o PowerSync nao estiver configurado (Fase 6 pendente no
+    // painel dele), AppConfig.powersyncUrl fica vazio e o app continua
+    // funcionando so localmente, sem tentar conectar.
+    if (AppConfig.powersyncUrl.isNotEmpty) {
+      await widget.db.connect(connector: ConectorSupabase());
+    }
   }
 
   @override
