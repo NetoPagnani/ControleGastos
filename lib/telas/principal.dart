@@ -4,10 +4,13 @@ import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'contas.dart';
 import 'configuracoes.dart';
 import 'gastos.dart';
+import 'graficos.dart';
+import 'inicio.dart';
 import 'lancar_gasto.dart';
 
-/// Casca de navegacao da Fase 3: Gastos, Contas e Configuracoes, mais o
-/// botao central de lancar. Inicio e Graficos entram na Fase 4.
+/// Casca de navegacao: Inicio, Gastos, Graficos, Contas, Config, mais o
+/// botao de lancar. A barra tem 5 abas; o botao de lancar fica flutuante
+/// em vez de centralizado, para caber sem notch customizado.
 class TelaPrincipal extends StatefulWidget {
   const TelaPrincipal({super.key, required this.db});
 
@@ -29,7 +32,9 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   @override
   Widget build(BuildContext context) {
     final telas = [
+      TelaInicio(db: widget.db),
       TelaGastos(db: widget.db),
+      TelaGraficos(db: widget.db),
       TelaContas(db: widget.db),
       TelaConfiguracoes(db: widget.db),
     ];
@@ -40,7 +45,9 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         selectedIndex: _aba,
         onDestinationSelected: (i) => setState(() => _aba = i),
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.home), label: 'Início'),
           NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Gastos'),
+          NavigationDestination(icon: Icon(Icons.pie_chart), label: 'Gráficos'),
           NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Contas'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Config'),
         ],
