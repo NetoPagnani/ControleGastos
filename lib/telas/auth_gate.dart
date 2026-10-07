@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../dados/conector_sincronizacao.dart';
 import '../dados/repositorios.dart';
 import 'login.dart';
 import 'principal.dart';
@@ -20,7 +21,12 @@ class AuthGate extends StatelessWidget {
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snap) {
         final sessao = Supabase.instance.client.auth.currentSession;
-        if (sessao == null) return const TelaLogin();
+        if (sessao == null) {
+          // Sem sessao: nao ha para quem sincronizar. Desconectar e
+          // seguro mesmo que ja estivesse desconectado.
+          db.disconnect();
+          return const TelaLogin();
+        }
         // Key pelo usuarioId: se a pessoa trocar de conta sem recarregar
         // a pagina, isto refaz a preparacao para o novo usuario.
         return _PreparandoConta(key: ValueKey(sessao.user.id), db: db, usuarioId: sessao.user.id);
@@ -45,6 +51,9 @@ class _PreparandoContaState extends State<_PreparandoConta> {
   Future<void> _preparar() async {
     await PerfilRepositorio(widget.db).garantirPerfil(widget.usuarioId);
     await CategoriasRepositorio(widget.db).garantirPadroes(widget.usuarioId);
+    // So conecta depois de garantir que o perfil/categorias existem
+    // localmente, para o primeiro upload nao chegar vazio no servidor.
+    await widget.db.connect(connector: ConectorSupabase());
   }
 
   @override
