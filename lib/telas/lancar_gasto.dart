@@ -186,20 +186,22 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
         return Column(
           children: [
             Expanded(
-              child: ListView(
-                children: [
-                  for (final conta in lista)
-                    RadioListTile<String>(
-                      value: conta.id,
-                      groupValue: _conta?.id,
-                      title: Text(conta.apelido),
-                      subtitle: Text(_rotuloTipo(conta.tipo)),
-                      onChanged: (_) => setState(() {
-                        _conta = conta;
-                        _parcelas = 1;
-                      }),
-                    ),
-                ],
+              child: RadioGroup<String>(
+                groupValue: _conta?.id,
+                onChanged: (id) => setState(() {
+                  _conta = lista.firstWhere((c) => c.id == id);
+                  _parcelas = 1;
+                }),
+                child: ListView(
+                  children: [
+                    for (final conta in lista)
+                      RadioListTile<String>(
+                        value: conta.id,
+                        title: Text(conta.apelido),
+                        subtitle: Text(_rotuloTipo(conta.tipo)),
+                      ),
+                  ],
+                ),
               ),
             ),
             if (_conta?.tipo == 'cartao_credito')
