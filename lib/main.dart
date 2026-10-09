@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/app_config.dart';
 import 'core/tema.dart';
 import 'dados/banco.dart';
+import 'dados/provedores.dart';
 import 'telas/auth_gate.dart';
 
 Future<void> main() async {
@@ -39,7 +41,12 @@ class ControleGastosApp extends StatelessWidget {
           if (!snap.hasData) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return AuthGate(db: snap.data!);
+          // Repositorios montados aqui, uma vez, e disponiveis pra
+          // qualquer tela abaixo na arvore (ver dados/provedores.dart).
+          return MultiProvider(
+            providers: provedoresDeDados(snap.data!),
+            child: const AuthGate(),
+          );
         },
       ),
     );

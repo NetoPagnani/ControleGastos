@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 
 import 'contas.dart';
 import 'configuracoes.dart';
@@ -16,13 +15,22 @@ const _destinos = [
   (icone: Icons.settings, rotulo: 'Config'),
 ];
 
+const _telas = [
+  TelaInicio(),
+  TelaGastos(),
+  TelaGraficos(),
+  TelaContas(),
+  TelaConfiguracoes(),
+];
+
 /// Casca de navegacao. Em janela estreita (celular) usa barra inferior;
 /// em janela larga (navegador redimensionado, tablet) usa barra lateral —
 /// mesmas telas, so o menu muda de lugar, como o Windows nativo faria.
+///
+/// O botao de lancar gasto fica aqui, no Scaffold que envolve as 5 abas —
+/// por isso ele aparece em qualquer aba, sem precisar repetir em cada tela.
 class TelaPrincipal extends StatefulWidget {
-  const TelaPrincipal({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaPrincipal({super.key});
 
   @override
   State<TelaPrincipal> createState() => _TelaPrincipalState();
@@ -34,23 +42,16 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
   Future<void> _lancar() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => TelaLancarGasto(db: widget.db)),
+      MaterialPageRoute(builder: (context) => const TelaLancarGasto()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final telas = [
-      TelaInicio(db: widget.db),
-      TelaGastos(db: widget.db),
-      TelaGraficos(db: widget.db),
-      TelaContas(db: widget.db),
-      TelaConfiguracoes(db: widget.db),
-    ];
     final conteudo = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
-        child: IndexedStack(index: _aba, children: telas),
+        child: IndexedStack(index: _aba, children: _telas),
       ),
     );
 

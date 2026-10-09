@@ -42,6 +42,8 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_localizations:
     sdk: flutter
+  provider: ^6.1.5+1
+  nested: ^1.0.0
 
 dev_dependencies:
   flutter_test:

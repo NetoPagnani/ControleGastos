@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_config.dart';
@@ -13,9 +14,7 @@ import 'principal.dart';
 /// perfil e as categorias padrao do usuario de verdade antes de mostrar
 /// o app — e so entao o resto das telas pode usar usuarioAtualId.
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +27,7 @@ class AuthGate extends StatelessWidget {
         if (snap.data?.event == AuthChangeEvent.passwordRecovery) {
           return const TelaNovaSenha();
         }
+        final db = context.read<PowerSyncDatabase>();
         final sessao = Supabase.instance.client.auth.currentSession;
         if (sessao == null) {
           // Sem sessao: nao ha para quem sincronizar. Desconectar e
@@ -37,16 +37,15 @@ class AuthGate extends StatelessWidget {
         }
         // Key pelo usuarioId: se a pessoa trocar de conta sem recarregar
         // a pagina, isto refaz a preparacao para o novo usuario.
-        return _PreparandoConta(key: ValueKey(sessao.user.id), db: db, usuarioId: sessao.user.id);
+        return _PreparandoConta(key: ValueKey(sessao.user.id), usuarioId: sessao.user.id);
       },
     );
   }
 }
 
 class _PreparandoConta extends StatefulWidget {
-  const _PreparandoConta({super.key, required this.db, required this.usuarioId});
+  const _PreparandoConta({super.key, required this.usuarioId});
 
-  final PowerSyncDatabase db;
   final String usuarioId;
 
   @override
@@ -57,13 +56,19 @@ class _PreparandoContaState extends State<_PreparandoConta> {
   late final Future<void> _futuro = _preparar();
 
   Future<void> _preparar() async {
-    await PerfilRepositorio(widget.db).garantirPerfil(widget.usuarioId);
-    await CategoriasRepositorio(widget.db).garantirPadroes(widget.usuarioId);
+    // Le tudo do context antes de qualquer await: usar o context depois
+    // de um gap assincrono nao e seguro (o widget pode ja ter sumido).
+    final perfil = context.read<PerfilRepositorio>();
+    final categorias = context.read<CategoriasRepositorio>();
+    final db = context.read<PowerSyncDatabase>();
+
+    await perfil.garantirPerfil(widget.usuarioId);
+    await categorias.garantirPadroes(widget.usuarioId);
     // Enquanto o PowerSync nao estiver configurado (Fase 6 pendente no
     // painel dele), AppConfig.powersyncUrl fica vazio e o app continua
     // funcionando so localmente, sem tentar conectar.
     if (AppConfig.powersyncUrl.isNotEmpty) {
-      await widget.db.connect(connector: ConectorSupabase());
+      await db.connect(connector: ConectorSupabase());
     }
   }
 
@@ -75,7 +80,7 @@ class _PreparandoContaState extends State<_PreparandoConta> {
         if (snap.connectionState != ConnectionState.done) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return TelaPrincipal(db: widget.db);
+        return const TelaPrincipal();
       },
     );
   }

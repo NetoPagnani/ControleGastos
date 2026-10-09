@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
@@ -7,18 +7,16 @@ import '../dominio/modelos.dart';
 
 /// Historico do mes, mais recente primeiro. Toque para apagar.
 class TelaGastos extends StatefulWidget {
-  const TelaGastos({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaGastos({super.key});
 
   @override
   State<TelaGastos> createState() => _TelaGastosState();
 }
 
 class _TelaGastosState extends State<TelaGastos> {
-  late final _lancamentos = LancamentosRepositorio(widget.db);
-  late final _categorias = CategoriasRepositorio(widget.db);
-  late final _contas = ContasRepositorio(widget.db);
+  late final _lancamentos = context.read<LancamentosRepositorio>();
+  late final _categorias = context.read<CategoriasRepositorio>();
+  late final _contas = context.read<ContasRepositorio>();
 
   Future<void> _apagar(Lancamento l) async {
     if (l.parcelasTotal > 1) {

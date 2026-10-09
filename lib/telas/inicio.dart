@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
 import '../core/tema.dart';
 import '../core/usuario_atual.dart';
@@ -14,20 +14,18 @@ String _reais(int centavos) => (centavos / 100).toStringAsFixed(2).replaceAll('.
 /// A tela que o Pierre nao tem: em vez de esperar a pessoa perguntar,
 /// mostra o vazamento direto.
 class TelaInicio extends StatefulWidget {
-  const TelaInicio({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaInicio({super.key});
 
   @override
   State<TelaInicio> createState() => _TelaInicioState();
 }
 
 class _TelaInicioState extends State<TelaInicio> {
-  late final _perfil = PerfilRepositorio(widget.db);
-  late final _contas = ContasRepositorio(widget.db);
-  late final _categorias = CategoriasRepositorio(widget.db);
-  late final _relatorios = RelatoriosRepositorio(widget.db);
-  late final _lancamentos = LancamentosRepositorio(widget.db);
+  late final _perfil = context.read<PerfilRepositorio>();
+  late final _contas = context.read<ContasRepositorio>();
+  late final _categorias = context.read<CategoriasRepositorio>();
+  late final _relatorios = context.read<RelatoriosRepositorio>();
+  late final _lancamentos = context.read<LancamentosRepositorio>();
 
   @override
   Widget build(BuildContext context) {
@@ -94,8 +92,7 @@ class _TelaInicioState extends State<TelaInicio> {
                             const SizedBox(height: 16),
                             const Text('Cartões', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            for (final cartao in cartoes)
-                              _CardFatura(db: widget.db, cartao: cartao, key: ValueKey(cartao.id)),
+                            for (final cartao in cartoes) _CardFatura(cartao: cartao, key: ValueKey(cartao.id)),
                           ],
                         ],
                       );
@@ -169,9 +166,8 @@ class _TelaInicioState extends State<TelaInicio> {
 /// Fatura aberta de um cartao especifico. Widget proprio para nao empilhar
 /// mais um FutureBuilder na arvore da tela de Inicio.
 class _CardFatura extends StatefulWidget {
-  const _CardFatura({super.key, required this.db, required this.cartao});
+  const _CardFatura({super.key, required this.cartao});
 
-  final PowerSyncDatabase db;
   final Conta cartao;
 
   @override
@@ -179,7 +175,7 @@ class _CardFatura extends StatefulWidget {
 }
 
 class _CardFaturaState extends State<_CardFatura> {
-  late final _relatorios = RelatoriosRepositorio(widget.db);
+  late final _relatorios = context.read<RelatoriosRepositorio>();
   late final _futuro = _carregar();
 
   Future<(FaturaAberta, int)> _carregar() async {

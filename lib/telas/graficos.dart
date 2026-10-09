@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
 import '../core/usuario_atual.dart';
 import '../dados/relatorios.dart';
@@ -19,9 +19,7 @@ const _paleta = [
 String _reais(int centavos) => (centavos / 100).toStringAsFixed(2).replaceAll('.', ',');
 
 class TelaGraficos extends StatefulWidget {
-  const TelaGraficos({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaGraficos({super.key});
 
   @override
   State<TelaGraficos> createState() => _TelaGraficosState();
@@ -29,8 +27,8 @@ class TelaGraficos extends StatefulWidget {
 
 class _TelaGraficosState extends State<TelaGraficos> {
   _Periodo _periodo = _Periodo.mes;
-  late final _relatorios = RelatoriosRepositorio(widget.db);
-  late final _categorias = CategoriasRepositorio(widget.db);
+  late final _relatorios = context.read<RelatoriosRepositorio>();
+  late final _categorias = context.read<CategoriasRepositorio>();
 
   (DateTime, DateTime) _janela() {
     final agora = DateTime.now();

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/usuario_atual.dart';
@@ -8,17 +8,15 @@ import '../dominio/modelos.dart';
 import 'diagnostico.dart';
 
 class TelaConfiguracoes extends StatefulWidget {
-  const TelaConfiguracoes({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaConfiguracoes({super.key});
 
   @override
   State<TelaConfiguracoes> createState() => _TelaConfiguracoesState();
 }
 
 class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
-  late final _perfil = PerfilRepositorio(widget.db);
-  late final _categorias = CategoriasRepositorio(widget.db);
+  late final _perfil = context.read<PerfilRepositorio>();
+  late final _categorias = context.read<CategoriasRepositorio>();
   final _rendaController = TextEditingController();
   final _novaCategoriaController = TextEditingController();
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
-import '../dados/banco.dart';
 import '../dados/repositorios.dart';
 
 /// Tela temporaria da Fase 2. Sem Visual Studio nao ha onde rodar um teste
@@ -25,11 +26,14 @@ class TelaDiagnostico extends StatefulWidget {
 }
 
 class _TelaDiagnosticoState extends State<TelaDiagnostico> {
+  late final PowerSyncDatabase _db = context.read<PowerSyncDatabase>();
   late final Future<List<ResultadoDiagnostico>> _futuro = _rodar();
 
   Future<List<ResultadoDiagnostico>> _rodar() async {
     final r = <ResultadoDiagnostico>[];
-    final db = await abrirBanco();
+    // Reusa o banco ja aberto pelo app (via Provider) — nao abre um
+    // segundo, o que podia causar disputa de arquivo no banco nativo.
+    final db = _db;
 
     // Comeca limpo, para o diagnostico dar o mesmo resultado em toda carga.
     await db.execute('DELETE FROM lancamentos WHERE usuario_id = ?', [_usuario]);

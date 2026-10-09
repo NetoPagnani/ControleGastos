@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
 import '../core/tema.dart';
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
+import 'contas.dart';
 
 /// Lancar um gasto: valor -> categoria -> conta. 3 toques no caminho feliz.
 class TelaLancarGasto extends StatefulWidget {
-  const TelaLancarGasto({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaLancarGasto({super.key});
 
   @override
   State<TelaLancarGasto> createState() => _TelaLancarGastoState();
@@ -24,9 +23,9 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
   int _parcelas = 1;
   DateTime _data = DateTime.now();
 
-  late final _categorias = CategoriasRepositorio(widget.db);
-  late final _contas = ContasRepositorio(widget.db);
-  late final _lancamentos = LancamentosRepositorio(widget.db);
+  late final _categorias = context.read<CategoriasRepositorio>();
+  late final _contas = context.read<ContasRepositorio>();
+  late final _lancamentos = context.read<LancamentosRepositorio>();
 
   String get _valorFormatado {
     final reais = _centavos ~/ 100;
@@ -176,10 +175,28 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
       builder: (context, snap) {
         final lista = snap.data ?? const [];
         if (lista.isEmpty) {
-          return const Center(
+          // Antes isso era um beco sem saida: so um aviso, sem jeito de
+          // sair dali a nao ser fechando a tela inteira. Agora abre o
+          // cadastro de conta direto, sem precisar voltar pro menu.
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('Cadastre uma conta em Contas antes de lançar um gasto.', textAlign: TextAlign.center),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Você ainda não tem nenhuma conta cadastrada.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const TelaContas()),
+                    ),
+                    child: const Text('Criar conta agora'),
+                  ),
+                ],
+              ),
             ),
           );
         }

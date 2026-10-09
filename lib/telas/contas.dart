@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
+import 'package:provider/provider.dart';
 
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
@@ -14,16 +14,14 @@ const _tipos = {
 };
 
 class TelaContas extends StatefulWidget {
-  const TelaContas({super.key, required this.db});
-
-  final PowerSyncDatabase db;
+  const TelaContas({super.key});
 
   @override
   State<TelaContas> createState() => _TelaContasState();
 }
 
 class _TelaContasState extends State<TelaContas> {
-  late final _contas = ContasRepositorio(widget.db);
+  late final _contas = context.read<ContasRepositorio>();
 
   Future<void> _abrirFormulario() async {
     final apelido = TextEditingController();
