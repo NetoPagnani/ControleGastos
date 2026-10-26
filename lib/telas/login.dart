@@ -39,7 +39,7 @@ class _TelaLoginState extends State<TelaLogin> {
         await auth.signInWithPassword(email: _email.text.trim(), password: _senha.text);
       }
     } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuth(e));
+      setState(() => _erro = mensagemAuthSupabase(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -57,7 +57,7 @@ class _TelaLoginState extends State<TelaLogin> {
         redirectTo: urlDeRetornoAuth,
       );
     } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuth(e));
+      setState(() => _erro = mensagemAuthSupabase(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -105,7 +105,7 @@ class _TelaLoginState extends State<TelaLogin> {
       // ninguem descobre por aqui quais e-mails tem conta no app.
       setState(() => _aviso = 'Se esse e-mail tiver uma conta, enviamos um link de recuperação pra ele.');
     } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuth(e));
+      setState(() => _erro = mensagemAuthSupabase(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }

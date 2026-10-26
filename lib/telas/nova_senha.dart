@@ -36,7 +36,7 @@ class _TelaNovaSenhaState extends State<TelaNovaSenha> {
       // Sai e volta pro login normal, agora com a senha nova.
       await Supabase.instance.client.auth.signOut();
     } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuth(e));
+      setState(() => _erro = mensagemAuthSupabase(e));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
