@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/dinheiro.dart';
 import '../core/usuario_atual.dart';
 import '../dados/relatorios.dart';
 import '../dados/repositorios.dart';
@@ -16,7 +17,7 @@ const _paleta = [
   Color(0xFF84CC16), Color(0xFFF97316), Color(0xFF8B5CF6),
 ];
 
-String _reais(int centavos) => (centavos / 100).toStringAsFixed(2).replaceAll('.', ',');
+String _reais(int centavos) => reais(centavos);
 
 class TelaGraficos extends StatefulWidget {
   const TelaGraficos({super.key});

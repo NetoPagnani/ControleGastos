@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/dinheiro.dart';
 import '../core/tema.dart';
 import '../core/usuario_atual.dart';
 import '../dados/relatorios.dart';
@@ -9,7 +10,7 @@ import '../dominio/alertas.dart';
 import '../dominio/modelos.dart';
 import '../dominio/resumo.dart';
 
-String _reais(int centavos) => (centavos / 100).toStringAsFixed(2).replaceAll('.', ',');
+String _reais(int centavos) => reais(centavos);
 
 /// A tela que o Pierre nao tem: em vez de esperar a pessoa perguntar,
 /// mostra o vazamento direto.

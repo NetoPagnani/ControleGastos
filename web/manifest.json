@@ -1,11 +1,11 @@
 {
-    "name": "controle_gastos",
-    "short_name": "controle_gastos",
+    "name": "Controle de Gastos",
+    "short_name": "Gastos",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0E0E10",
+    "theme_color": "#0E0E10",
+    "description": "Controle de gastos pessoais: lança em 3 toques e mostra onde o dinheiro está vazando.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,11 +1,20 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:powersync/powersync.dart' show PowerSyncDatabase, SyncStatus;
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/dinheiro.dart';
 import '../core/usuario_atual.dart';
+import '../dados/exportacao.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
 import 'diagnostico.dart';
+import 'privacidade.dart';
 
 class TelaConfiguracoes extends StatefulWidget {
   const TelaConfiguracoes({super.key});
@@ -20,10 +29,13 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
   final _rendaController = TextEditingController();
   final _novaCategoriaController = TextEditingController();
 
+  late final _db = context.read<PowerSyncDatabase>();
+  late final _versao = PackageInfo.fromPlatform();
+
   Future<void> _salvarRenda() async {
-    final valor = double.tryParse(_rendaController.text.replaceAll(',', '.'));
-    if (valor == null) return;
-    await _perfil.definirRendaCentavos(usuarioAtualId, (valor * 100).round());
+    final centavos = centavosDeTexto(_rendaController.text);
+    if (centavos == null || centavos < 0) return;
+    await _perfil.definirRendaCentavos(usuarioAtualId, centavos);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Renda salva')));
     }
@@ -36,20 +48,134 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
     _novaCategoriaController.clear();
   }
 
+  void _avisar(String texto) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  Future<void> _exportarCsv() async {
+    final usuarioId = usuarioAtualId;
+    final lancamentos = await context.read<LancamentosRepositorio>().todos(usuarioId);
+    if (!mounted) return;
+    final nomeCategoria = await _categorias.observarNomes(usuarioId).first;
+    if (!mounted) return;
+    final nomeConta = await context.read<ContasRepositorio>().observarNomes(usuarioId).first;
+    if (lancamentos.isEmpty) {
+      _avisar('Ainda não há gastos para exportar.');
+      return;
+    }
+    final csv = gerarCsv(lancamentos: lancamentos, nomeCategoria: nomeCategoria, nomeConta: nomeConta);
+    // BOM no inicio: sem ele o Excel abre os acentos quebrados.
+    final bytes = utf8.encode('\uFEFF$csv');
+    final hoje = formatarData(DateTime.now());
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile.fromData(bytes, mimeType: 'text/csv', name: 'gastos-$hoje.csv')],
+        fileNameOverrides: ['gastos-$hoje.csv'],
+        subject: 'Controle de Gastos · exportação',
+      ),
+    );
+  }
+
+  Future<int> _pendentes() async => (await _db.getUploadQueueStats()).count;
+
+  /// Sair limpa o banco do aparelho: num celular compartilhado, a proxima
+  /// pessoa nao herda os gastos de quem saiu. O que ja sincronizou volta
+  /// no proximo login; o que nao sincronizou se perderia, entao avisa.
+  Future<void> _sair() async {
+    final pendentes = await _pendentes();
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sair da conta?'),
+        content: Text(
+          pendentes == 0
+              ? 'Seus dados ficam salvos na nuvem e voltam quando você entrar de novo.'
+              : '$pendentes alterações ainda não foram sincronizadas e serão perdidas. '
+                    'Conecte-se à internet e espere sincronizar para não perder nada.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sair')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _db.disconnectAndClear();
+    await Supabase.instance.client.auth.signOut();
+  }
+
+  Future<void> _apagarConta() async {
+    final confirmacao = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apagar conta'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Todos os seus gastos, contas e categorias serão apagados de forma definitiva, '
+              'neste aparelho e na nuvem. Não dá para desfazer.',
+            ),
+            const SizedBox(height: 12),
+            const Text('Digite APAGAR para confirmar:'),
+            TextField(controller: confirmacao, autofocus: true),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(context, confirmacao.text.trim().toUpperCase() == 'APAGAR'),
+            child: const Text('Apagar tudo'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      // Servidor primeiro: se falhar (sem internet), nada local se perde.
+      await Supabase.instance.client.rpc('apagar_minha_conta');
+    } catch (_) {
+      _avisar('Não foi possível apagar agora. Verifique a internet e tente de novo.');
+      return;
+    }
+    await _db.disconnectAndClear();
+    await Supabase.instance.client.auth.signOut();
+  }
+
+  Future<void> _renomearCategoria(Categoria c) async {
+    final controlador = TextEditingController(text: c.nome);
+    final nome = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renomear categoria'),
+        content: TextField(controller: controlador, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, controlador.text.trim()), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (nome != null && nome.isNotEmpty && nome != c.nome) await _categorias.renomear(c.id, nome);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configurações'),
         actions: [
-          // Temporario: atalho para a tela de diagnostico da Fase 2.
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'Diagnóstico do banco',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const TelaDiagnostico()),
+          // Ferramenta de desenvolvimento: fica fora da versao da loja.
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report_outlined),
+              tooltip: 'Diagnóstico do banco',
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TelaDiagnostico())),
             ),
-          ),
         ],
       ),
       body: ListView(
@@ -64,11 +190,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () => Supabase.instance.client.auth.signOut(),
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Sair'),
-              ),
+              TextButton.icon(onPressed: _sair, icon: const Icon(Icons.logout, size: 18), label: const Text('Sair')),
             ],
           ),
           const Divider(height: 24),
@@ -125,6 +247,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
                   for (final c in lista)
                     ListTile(
                       title: Text(c.nome),
+                      onTap: () => _renomearCategoria(c),
                       trailing: IconButton(
                         icon: const Icon(Icons.archive_outlined),
                         tooltip: 'Arquivar',
@@ -135,6 +258,68 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
               );
             },
           ),
+          const Divider(height: 32),
+          const Text('Sincronização', style: TextStyle(fontWeight: FontWeight.bold)),
+          StreamBuilder<SyncStatus>(
+            stream: _db.statusStream,
+            initialData: _db.currentStatus,
+            builder: (context, snap) {
+              final status = snap.data!;
+              final ultimo = status.lastSyncedAt?.toLocal();
+              return FutureBuilder<int>(
+                // Recalcula a cada mudanca de status (subiu algo, conectou...).
+                key: ValueKey(status),
+                future: _pendentes(),
+                builder: (context, pend) {
+                  final partes = [
+                    status.connected ? 'Conectado' : 'Sem conexão · tudo continua salvo no aparelho',
+                    if (ultimo != null)
+                      'última sincronização ${ultimo.day.toString().padLeft(2, '0')}/${ultimo.month.toString().padLeft(2, '0')} '
+                          '${ultimo.hour.toString().padLeft(2, '0')}:${ultimo.minute.toString().padLeft(2, '0')}',
+                    if ((pend.data ?? 0) > 0) '${pend.data} alterações aguardando envio',
+                  ];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(status.connected ? Icons.cloud_done_outlined : Icons.cloud_off_outlined),
+                    title: Text(partes.first),
+                    subtitle: partes.length > 1 ? Text(partes.skip(1).join(' · ')) : null,
+                  );
+                },
+              );
+            },
+          ),
+          const Divider(height: 32),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Exportar gastos (CSV)'),
+            subtitle: const Text('Abre no Excel ou no Planilhas Google'),
+            onTap: _exportarCsv,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Política de privacidade'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TelaPrivacidade())),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delete_forever_outlined, color: Theme.of(context).colorScheme.error),
+            title: Text('Apagar conta', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            subtitle: const Text('Remove todos os seus dados de forma definitiva'),
+            onTap: _apagarConta,
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<PackageInfo>(
+            future: _versao,
+            builder: (context, snap) => Center(
+              child: Text(
+                snap.hasData ? 'Controle de Gastos ${snap.data!.version} (${snap.data!.buildNumber})' : '',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(height: 88),
         ],
       ),
     );

@@ -81,6 +81,21 @@ class CategoriasRepositorio {
       [agoraIso(), id],
     );
   }
+
+  Future<void> renomear(String id, String nome) async {
+    await _db.execute(
+      'UPDATE categorias SET nome = ?, atualizado_em = ? WHERE id = ?',
+      [nome, agoraIso(), id],
+    );
+  }
+
+  /// Nome de toda categoria, arquivada ou nao. O historico continua
+  /// mostrando o nome certo depois que a categoria sai da lista.
+  Stream<Map<String, String>> observarNomes(String usuarioId) {
+    return _db
+        .watch('SELECT id, nome FROM categorias WHERE usuario_id = ?', parameters: [usuarioId])
+        .map((rs) => {for (final r in rs) r['id'] as String: r['nome'] as String});
+  }
 }
 
 class PerfilRepositorio {
@@ -148,6 +163,29 @@ class ContasRepositorio {
       'UPDATE contas SET arquivada = 1, atualizado_em = ? WHERE id = ?',
       [agoraIso(), id],
     );
+  }
+
+  /// O tipo nao muda depois de criada: trocar cartao por debito deixaria
+  /// as parcelas ja lancadas sem fatura.
+  Future<void> editar({
+    required String id,
+    required String apelido,
+    int? limiteCentavos,
+    int? diaFechamento,
+    int? diaVencimento,
+  }) async {
+    await _db.execute(
+      'UPDATE contas SET apelido = ?, limite_centavos = ?, dia_fechamento = ?, '
+      'dia_vencimento = ?, atualizado_em = ? WHERE id = ?',
+      [apelido, limiteCentavos, diaFechamento, diaVencimento, agoraIso(), id],
+    );
+  }
+
+  /// Apelido de toda conta, arquivada ou nao (mesmo motivo das categorias).
+  Stream<Map<String, String>> observarNomes(String usuarioId) {
+    return _db
+        .watch('SELECT id, apelido FROM contas WHERE usuario_id = ?', parameters: [usuarioId])
+        .map((rs) => {for (final r in rs) r['id'] as String: r['apelido'] as String});
   }
 
   Stream<List<Conta>> observarAtivas(String usuarioId) {
@@ -219,6 +257,70 @@ class LancamentosRepositorio {
     await _db.execute('DELETE FROM lancamentos WHERE id = ?', [id]);
   }
 
+  /// Edita uma parcela (ou um gasto simples) por inteiro.
+  Future<void> editarParcela({
+    required String id,
+    required String contaId,
+    required String categoriaId,
+    required int valorCentavos,
+    required DateTime data,
+    String? descricao,
+  }) async {
+    await _db.execute(
+      'UPDATE lancamentos SET conta_id = ?, categoria_id = ?, valor_centavos = ?, '
+      'data = ?, descricao = ?, atualizado_em = ? WHERE id = ?',
+      [contaId, categoriaId, valorCentavos, formatarData(data), descricao, agoraIso(), id],
+    );
+  }
+
+  /// Edita o que e comum a todas as parcelas. Valor e data ficam de fora:
+  /// cada parcela tem os seus, e mudar o total refaria a divisao.
+  Future<void> editarCompra({
+    required String compraId,
+    required String contaId,
+    required String categoriaId,
+    String? descricao,
+  }) async {
+    await _db.execute(
+      'UPDATE lancamentos SET conta_id = ?, categoria_id = ?, descricao = ?, atualizado_em = ? '
+      'WHERE compra_id = ?',
+      [contaId, categoriaId, descricao, agoraIso(), compraId],
+    );
+  }
+
+  /// Conta e categoria do ultimo gasto lancado, para vir pre-selecionadas.
+  Future<({String contaId, String categoriaId})?> ultimaEscolha(String usuarioId) async {
+    final r = await _db.getOptional(
+      'SELECT conta_id, categoria_id FROM lancamentos WHERE usuario_id = ? '
+      'ORDER BY criado_em DESC LIMIT 1',
+      [usuarioId],
+    );
+    if (r == null) return null;
+    return (contaId: r['conta_id'] as String, categoriaId: r['categoria_id'] as String);
+  }
+
+  /// Todos os lancamentos, mais antigos primeiro. Usado pela exportacao CSV.
+  Future<List<Lancamento>> todos(String usuarioId) async {
+    final rs = await _db.getAll(
+      'SELECT id, conta_id, categoria_id, valor_centavos, descricao, data, compra_id, '
+      'parcela_num, parcelas_total FROM lancamentos WHERE usuario_id = ? ORDER BY data, criado_em',
+      [usuarioId],
+    );
+    return [for (final r in rs) _deLinha(r)];
+  }
+
+  static Lancamento _deLinha(Map<String, dynamic> r) => Lancamento(
+        id: r['id'] as String,
+        contaId: r['conta_id'] as String,
+        categoriaId: r['categoria_id'] as String,
+        valorCentavos: r['valor_centavos'] as int,
+        descricao: r['descricao'] as String?,
+        data: DateTime.parse(r['data'] as String),
+        compraId: r['compra_id'] as String,
+        parcelaNum: r['parcela_num'] as int,
+        parcelasTotal: r['parcelas_total'] as int,
+      );
+
   /// Lancamentos com data entre [inicio] (incluso) e [fim] (excluso).
   Stream<List<Lancamento>> observarPeriodo({
     required String usuarioId,
@@ -229,22 +331,9 @@ class LancamentosRepositorio {
         .watch(
           'SELECT id, conta_id, categoria_id, valor_centavos, descricao, data, compra_id, '
           'parcela_num, parcelas_total FROM lancamentos '
-          'WHERE usuario_id = ? AND data >= ? AND data < ? ORDER BY data DESC',
+          'WHERE usuario_id = ? AND data >= ? AND data < ? ORDER BY data DESC, criado_em DESC',
           parameters: [usuarioId, formatarData(inicio), formatarData(fim)],
         )
-        .map((rs) => [
-              for (final r in rs)
-                Lancamento(
-                  id: r['id'] as String,
-                  contaId: r['conta_id'] as String,
-                  categoriaId: r['categoria_id'] as String,
-                  valorCentavos: r['valor_centavos'] as int,
-                  descricao: r['descricao'] as String?,
-                  data: DateTime.parse(r['data'] as String),
-                  compraId: r['compra_id'] as String,
-                  parcelaNum: r['parcela_num'] as int,
-                  parcelasTotal: r['parcelas_total'] as int,
-                ),
-            ]);
+        .map((rs) => [for (final r in rs) _deLinha(r)]);
   }
 }

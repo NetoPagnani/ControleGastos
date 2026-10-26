@@ -22,10 +22,21 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
   Conta? _conta;
   int _parcelas = 1;
   DateTime _data = DateTime.now();
+  bool _mostrarDescricao = false;
+  final _descricao = TextEditingController();
+  ({String contaId, String categoriaId})? _ultima;
 
   late final _categorias = context.read<CategoriasRepositorio>();
   late final _contas = context.read<ContasRepositorio>();
   late final _lancamentos = context.read<LancamentosRepositorio>();
+
+  @override
+  void initState() {
+    super.initState();
+    _lancamentos.ultimaEscolha(usuarioAtualId).then((u) {
+      if (mounted) setState(() => _ultima = u);
+    });
+  }
 
   String get _valorFormatado {
     final reais = _centavos ~/ 100;
@@ -51,6 +62,7 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
       totalCentavos: _centavos,
       data: _data,
       parcelas: _parcelas,
+      descricao: _descricao.text.trim().isEmpty ? null : _descricao.text.trim(),
     );
     if (mounted) Navigator.of(context).pop(true);
   }
@@ -158,7 +170,9 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
                     _etapa = 2;
                   }),
                   child: Card(
-                    color: _categoria?.id == c.id ? Theme.of(context).colorScheme.primaryContainer : null,
+                    color: (_categoria?.id ?? _ultima?.categoriaId) == c.id
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
                     child: Center(child: Text(c.nome, textAlign: TextAlign.center)),
                   ),
                 ),
@@ -199,6 +213,12 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
               ),
             ),
           );
+        }
+        // Sugere a conta do ultimo gasto: o caminho feliz vira um toque so.
+        if (_conta == null && _ultima != null) {
+          for (final c in lista) {
+            if (c.id == _ultima!.contaId) _conta = c;
+          }
         }
         return Column(
           children: [
@@ -241,6 +261,24 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
                   ],
                 ),
               ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _mostrarDescricao
+                  ? TextField(
+                      controller: _descricao,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+                    )
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _mostrarDescricao = true),
+                        icon: const Icon(Icons.notes, size: 18),
+                        label: const Text('Adicionar descrição'),
+                      ),
+                    ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(

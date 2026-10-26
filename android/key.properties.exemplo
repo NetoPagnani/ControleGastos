@@ -1,0 +1,7 @@
+# Copie para android/key.properties (fora do git) e preencha.
+# Gerar a chave uma vez so, e guardar bem (sem ela nao da pra atualizar o app na loja):
+#   keytool -genkey -v -keystore ~/controle-gastos-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storePassword=SENHA_DO_KEYSTORE
+keyPassword=SENHA_DA_CHAVE
+keyAlias=upload
+storeFile=/home/SEU_USUARIO/controle-gastos-upload.jks

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/erros_auth.dart';
+import '../core/redirecionamento.dart';
 
 /// E-mail/senha e Google. O AuthGate troca esta tela pelo app assim que
 /// o Supabase Auth confirmar a sessao.
@@ -29,7 +30,11 @@ class _TelaLoginState extends State<TelaLogin> {
     try {
       final auth = Supabase.instance.client.auth;
       if (_criandoConta) {
-        await auth.signUp(email: _email.text.trim(), password: _senha.text);
+        await auth.signUp(
+          email: _email.text.trim(),
+          password: _senha.text,
+          emailRedirectTo: urlDeRetornoAuth,
+        );
       } else {
         await auth.signInWithPassword(email: _email.text.trim(), password: _senha.text);
       }
@@ -47,7 +52,10 @@ class _TelaLoginState extends State<TelaLogin> {
       _aviso = null;
     });
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(OAuthProvider.google);
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: urlDeRetornoAuth,
+      );
     } on AuthException catch (e) {
       setState(() => _erro = mensagemAuth(e));
     } finally {
@@ -91,7 +99,7 @@ class _TelaLoginState extends State<TelaLogin> {
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         controlador.text.trim(),
-        redirectTo: Uri.base.toString(),
+        redirectTo: urlDeRetornoAuth,
       );
       // Mensagem igual tenha dado certo ou o e-mail nao exista: assim
       // ninguem descobre por aqui quais e-mails tem conta no app.

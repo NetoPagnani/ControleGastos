@@ -1,5 +1,5 @@
 name: controle_gastos
-description: "A new Flutter project."
+description: "Controle de gastos pessoais: lança em 3 toques e mostra onde o dinheiro está vazando."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -44,7 +44,8 @@ dependencies:
     sdk: flutter
   provider: ^6.1.5+1
   nested: ^1.0.0
-
+  share_plus: ^13.3.1
+  package_info_plus: ^10.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -55,6 +56,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -97,3 +99,17 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Icone do app: `dart run flutter_launcher_icons` regenera a partir de assets/icone.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icone/icone.png
+  adaptive_icon_background: "#0E0E10"
+  adaptive_icon_foreground: assets/icone/icone_frente.png
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: assets/icone/icone.png
+    background_color: "#0E0E10"
+    theme_color: "#0E0E10"
