@@ -52,3 +52,4 @@ lib/core/app_config.dart
 
 # Pastas de ferramentas de sessao
 .superpowers/
+lib/firebase_options.dart
