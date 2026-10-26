@@ -4,6 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// mais comuns; o que nao reconhece cai num texto generico em portugues —
 /// nunca mostra ingles cru na tela.
 String mensagemAuth(AuthException e) {
+  // Nao chegou ao servidor (sem internet ou endereco do Supabase fora do ar).
+  if (e is AuthRetryableFetchException) {
+    return 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
+  }
   switch (e.code) {
     case 'invalid_credentials':
       return 'E-mail ou senha incorretos.';

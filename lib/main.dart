@@ -16,8 +16,17 @@ Future<void> main() async {
   runApp(const ControleGastosApp());
 }
 
-class ControleGastosApp extends StatelessWidget {
+class ControleGastosApp extends StatefulWidget {
   const ControleGastosApp({super.key});
+
+  @override
+  State<ControleGastosApp> createState() => _ControleGastosAppState();
+}
+
+class _ControleGastosAppState extends State<ControleGastosApp> {
+  // Aberto uma vez so. Chamar abrirBanco() dentro do build criava uma
+  // instancia nova do PowerSync a cada reconstrucao (hot reload, por exemplo).
+  late final Future<PowerSyncDatabase> _banco = abrirBanco();
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +42,7 @@ class ControleGastosApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: FutureBuilder<PowerSyncDatabase>(
-        future: abrirBanco(),
+        future: _banco,
         builder: (context, snap) {
           if (snap.hasError) {
             return Scaffold(body: Center(child: Text('Erro ao abrir o banco: ${snap.error}')));
