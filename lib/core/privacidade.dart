@@ -19,7 +19,7 @@ Como os dados são usados
 Somente para mostrar seus gastos, gráficos e alertas e para sincronizar entre os seus aparelhos. Nada é vendido nem compartilhado para publicidade.
 
 Onde ficam
-No seu aparelho e, para sincronizar, nos serviços Supabase (banco de dados e login, servidores em São Paulo) e PowerSync (sincronização). A comunicação é criptografada (HTTPS). Cada conta só tem acesso aos próprios dados.
+No seu aparelho e, para sincronizar, no Firebase, serviço do Google (banco de dados e login, servidores em São Paulo). A comunicação é criptografada (HTTPS). Cada conta só tem acesso aos próprios dados.
 
 Exportar e apagar
 Em Configurações você pode exportar todos os seus gastos em CSV e apagar a sua conta. Apagar a conta remove de forma definitiva todos os seus dados dos servidores e do aparelho. Se não conseguir acessar o app, peça a exclusão pelo e-mail abaixo.

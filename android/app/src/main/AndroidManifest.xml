@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Sincronizacao com o Supabase/PowerSync e login. Sem isso, o build
+    <!-- Sincronizacao com o Firebase e login. Sem isso, o build
          de release (o da loja) nao acessa a rede. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
@@ -27,14 +27,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-            <!-- Volta do navegador depois do login com Google e do link de
-                 "esqueci minha senha" (ver core/redirecionamento.dart). -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="controlegastos" android:host="login-callback"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

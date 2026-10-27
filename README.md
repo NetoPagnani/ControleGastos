@@ -1,11 +1,19 @@
 # Controle de Gastos
 
-App de gastos pessoais em Flutter (Android e Web), offline-first, com Supabase (login e banco) e PowerSync (sincronização). Spec e plano em `docs/superpowers/`.
+App de gastos pessoais em Flutter (Android e Web), offline-first, com Firebase (Authentication para o login e Cloud Firestore para os dados, que já guarda uma cópia no aparelho e sincroniza sozinho). Spec e plano em `docs/superpowers/`.
 
 ## Rodar
 
-1. Copie `config/app_config.exemplo.dart` para `lib/core/app_config.dart` e preencha.
-2. `flutter run`
+1. Instale as ferramentas do Firebase (no PowerShell, use `npm.cmd` e `firebase.cmd`):
+
+   ```bash
+   npm install -g firebase-tools
+   dart pub global activate flutterfire_cli
+   ```
+
+2. Entre na conta Google do projeto: `firebase login`.
+3. Gere a configuração: `flutterfire configure --platforms=android,web`. Ele cria `lib/firebase_options.dart` e `android/app/google-services.json`, que ficam fora do git.
+4. `flutter run` (na Web, use sempre a mesma porta: `flutter run -d chrome --web-port 5000`).
 
 ## Publicar no Google Play
 
@@ -19,11 +27,16 @@ App de gastos pessoais em Flutter (Android e Web), offline-first, com Supabase (
 
    Copie `android/key.properties.exemplo` para `android/key.properties` e preencha. Esse arquivo fica fora do git.
 
-2. **Exclusão de conta no Supabase.** Rode `supabase/migrations/20261025000000_apagar_minha_conta.sql` no SQL Editor do projeto. Sem isso, o botão "Apagar conta" mostra erro.
+2. **Firebase.** No console do projeto:
+   - Authentication > Sign-in method: ative **E-mail/senha** e **Google**.
+   - Authentication > Settings > Authorized domains: adicione o endereço onde a versão Web estiver publicada.
+   - Firestore Database criado em `southamerica-east1` (São Paulo).
+   - Publique as regras de segurança (`firestore.rules`): `firebase deploy --only firestore:rules`.
 
-3. **Links de retorno do login.** Em Supabase > Authentication > URL Configuration > Redirect URLs, adicione:
-   - `controlegastos://login-callback` (Android: login com Google, confirmação de e-mail e "esqueci minha senha")
-   - o endereço onde a versão Web estiver publicada
+3. **Login com Google no Android.** Em Configurações do projeto > Seus apps > Android, adicione o SHA-1 de três chaves e depois rode `flutterfire configure` de novo:
+   - debug: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
+   - upload: `keytool -list -v -keystore ~/controle-gastos-upload.jks -alias upload`
+   - assinatura do Google Play: Play Console > Teste e lançamento > Integridade do app
 
 4. **Política de privacidade.** A loja pede um endereço público. O texto está em `web/privacidade.html` (e dentro do app, em Configurações). Publicando a versão Web, ela fica em `<endereço>/privacidade.html`.
 

@@ -48,7 +48,6 @@ app.*.map.json
 .widget_preview/
 
 # Credenciais locais do app
-lib/core/app_config.dart
 
 # Pastas de ferramentas de sessao
 .superpowers/
