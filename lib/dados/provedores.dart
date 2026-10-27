@@ -1,7 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nested/nested.dart' show SingleChildWidget;
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:provider/provider.dart';
 
+import 'autenticacao.dart';
 import 'relatorios.dart';
 import 'repositorios.dart';
 
@@ -10,9 +11,10 @@ import 'repositorios.dart';
 /// `XRepositorio(widget.db)`. As telas so pedem o que precisam com
 /// `context.read<XRepositorio>()` — nao sabem como o repositorio e
 /// construido, nem precisam receber `db` de tela em tela.
-List<SingleChildWidget> provedoresDeDados(PowerSyncDatabase db) {
+List<SingleChildWidget> provedoresDeDados(FirebaseFirestore db, Autenticacao auth) {
   return [
-    Provider<PowerSyncDatabase>.value(value: db),
+    Provider<FirebaseFirestore>.value(value: db),
+    Provider<Autenticacao>.value(value: auth),
     Provider<PerfilRepositorio>(create: (_) => PerfilRepositorio(db)),
     Provider<CategoriasRepositorio>(create: (_) => CategoriasRepositorio(db)),
     Provider<ContasRepositorio>(create: (_) => ContasRepositorio(db)),

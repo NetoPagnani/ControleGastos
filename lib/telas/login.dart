@@ -1,11 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 
 import '../core/erros_auth.dart';
-import '../core/redirecionamento.dart';
+import '../dados/autenticacao.dart';
 
-/// E-mail/senha e Google. O AuthGate troca esta tela pelo app assim que
-/// o Supabase Auth confirmar a sessao.
+/// E-mail/senha e Google. O AuthGate troca esta tela pelo app (ou pela
+/// confirmacao de e-mail) assim que o Firebase confirmar o login.
 class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
 
@@ -14,6 +15,7 @@ class TelaLogin extends StatefulWidget {
 }
 
 class _TelaLoginState extends State<TelaLogin> {
+  late final _auth = context.read<Autenticacao>();
   final _email = TextEditingController();
   final _senha = TextEditingController();
   bool _criandoConta = false;
@@ -28,18 +30,13 @@ class _TelaLoginState extends State<TelaLogin> {
       _aviso = null;
     });
     try {
-      final auth = Supabase.instance.client.auth;
       if (_criandoConta) {
-        await auth.signUp(
-          email: _email.text.trim(),
-          password: _senha.text,
-          emailRedirectTo: urlDeRetornoAuth,
-        );
+        await _auth.criarConta(_email.text.trim(), _senha.text);
       } else {
-        await auth.signInWithPassword(email: _email.text.trim(), password: _senha.text);
+        await _auth.entrar(_email.text.trim(), _senha.text);
       }
-    } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuthSupabase(e));
+    } on FirebaseAuthException catch (e) {
+      _mostrarErro(e);
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -52,12 +49,9 @@ class _TelaLoginState extends State<TelaLogin> {
       _aviso = null;
     });
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: urlDeRetornoAuth,
-      );
-    } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuthSupabase(e));
+      await _auth.entrarComGoogle();
+    } on FirebaseAuthException catch (e) {
+      _mostrarErro(e);
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -97,18 +91,21 @@ class _TelaLoginState extends State<TelaLogin> {
       _aviso = null;
     });
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(
-        controlador.text.trim(),
-        redirectTo: urlDeRetornoAuth,
-      );
+      await _auth.enviarRedefinicaoDeSenha(controlador.text.trim());
       // Mensagem igual tenha dado certo ou o e-mail nao exista: assim
       // ninguem descobre por aqui quais e-mails tem conta no app.
       setState(() => _aviso = 'Se esse e-mail tiver uma conta, enviamos um link de recuperação pra ele.');
-    } on AuthException catch (e) {
-      setState(() => _erro = mensagemAuthSupabase(e));
+    } on FirebaseAuthException catch (e) {
+      _mostrarErro(e);
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
+  }
+
+  /// Texto vazio = a pessoa fechou a janela do Google; nao e erro.
+  void _mostrarErro(FirebaseAuthException e) {
+    final m = mensagemAuth(e);
+    if (m.isNotEmpty && mounted) setState(() => _erro = m);
   }
 
   @override

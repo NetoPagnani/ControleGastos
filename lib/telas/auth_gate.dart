@@ -1,43 +1,34 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/app_config.dart';
-import '../dados/conector_sincronizacao.dart';
+import '../dados/autenticacao.dart';
 import '../dados/repositorios.dart';
+import 'confirmar_email.dart';
 import 'login.dart';
-import 'nova_senha.dart';
 import 'principal.dart';
 
-/// Mostra o login enquanto nao ha sessao. Depois de logar, garante o
-/// perfil e as categorias padrao do usuario de verdade antes de mostrar
-/// o app — e so entao o resto das telas pode usar usuarioAtualId.
+/// Tres estados: sem login → tela de login; e-mail ainda nao confirmado →
+/// tela de confirmacao; confirmado → garante perfil e categorias padrao e
+/// mostra o app. So depois disso o resto das telas pode usar usuarioAtualId.
+/// Quem entra com Google ja vem com o e-mail confirmado pelo Google.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+    return StreamBuilder<User?>(
+      stream: context.read<Autenticacao>().usuario,
       builder: (context, snap) {
-        // Link de "esqueci minha senha" clicado: o Supabase ja criou uma
-        // sessao temporaria so pra isso. Mostra a tela de nova senha antes
-        // de qualquer outra coisa, mesmo com sessao ativa.
-        if (snap.data?.event == AuthChangeEvent.passwordRecovery) {
-          return const TelaNovaSenha();
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        final db = context.read<PowerSyncDatabase>();
-        final sessao = Supabase.instance.client.auth.currentSession;
-        if (sessao == null) {
-          // Sem sessao: nao ha para quem sincronizar. Desconectar e
-          // seguro mesmo que ja estivesse desconectado.
-          db.disconnect();
-          return const TelaLogin();
-        }
-        // Key pelo usuarioId: se a pessoa trocar de conta sem recarregar
-        // a pagina, isto refaz a preparacao para o novo usuario.
-        return _PreparandoConta(key: ValueKey(sessao.user.id), usuarioId: sessao.user.id);
+        final usuario = snap.data;
+        if (usuario == null) return const TelaLogin();
+        if (!usuario.emailVerified) return TelaConfirmarEmail(email: usuario.email ?? '');
+        // Key pelo uid: se a pessoa trocar de conta sem recarregar a
+        // pagina, isto refaz a preparacao para o novo usuario.
+        return _PreparandoConta(key: ValueKey(usuario.uid), usuarioId: usuario.uid);
       },
     );
   }
@@ -60,16 +51,9 @@ class _PreparandoContaState extends State<_PreparandoConta> {
     // de um gap assincrono nao e seguro (o widget pode ja ter sumido).
     final perfil = context.read<PerfilRepositorio>();
     final categorias = context.read<CategoriasRepositorio>();
-    final db = context.read<PowerSyncDatabase>();
 
     await perfil.garantirPerfil(widget.usuarioId);
     await categorias.garantirPadroes(widget.usuarioId);
-    // Enquanto o PowerSync nao estiver configurado (Fase 6 pendente no
-    // painel dele), AppConfig.powersyncUrl fica vazio e o app continua
-    // funcionando so localmente, sem tentar conectar.
-    if (AppConfig.powersyncUrl.isNotEmpty) {
-      await db.connect(connector: ConectorSupabase());
-    }
   }
 
   @override

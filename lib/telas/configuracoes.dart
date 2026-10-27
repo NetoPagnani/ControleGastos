@@ -1,20 +1,24 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:powersync/powersync.dart' show PowerSyncDatabase, SyncStatus;
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/dinheiro.dart';
+import '../core/erros_auth.dart';
 import '../core/usuario_atual.dart';
+import '../dados/autenticacao.dart';
+import '../dados/conta_usuario.dart';
 import '../dados/exportacao.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
 import 'diagnostico.dart';
 import 'privacidade.dart';
+import 'status_sincronizacao.dart';
 
 class TelaConfiguracoes extends StatefulWidget {
   const TelaConfiguracoes({super.key});
@@ -29,7 +33,8 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
   final _rendaController = TextEditingController();
   final _novaCategoriaController = TextEditingController();
 
-  late final _db = context.read<PowerSyncDatabase>();
+  late final _db = context.read<FirebaseFirestore>();
+  late final _auth = context.read<Autenticacao>();
   late final _versao = PackageInfo.fromPlatform();
 
   Future<void> _salvarRenda() async {
@@ -76,22 +81,19 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
     );
   }
 
-  Future<int> _pendentes() async => (await _db.getUploadQueueStats()).count;
-
-  /// Sair limpa o banco do aparelho: num celular compartilhado, a proxima
-  /// pessoa nao herda os gastos de quem saiu. O que ja sincronizou volta
-  /// no proximo login; o que nao sincronizou se perderia, entao avisa.
+  /// O que ja sincronizou volta no proximo login; o que nao sincronizou
+  /// nao chega mais ao servidor depois de sair, entao avisa.
   Future<void> _sair() async {
-    final pendentes = await _pendentes();
+    final pendentes = await temGravacoesPendentes(_db, usuarioAtualId);
     if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sair da conta?'),
         content: Text(
-          pendentes == 0
+          !pendentes
               ? 'Seus dados ficam salvos na nuvem e voltam quando você entrar de novo.'
-              : '$pendentes alterações ainda não foram sincronizadas e serão perdidas. '
+              : 'Há alterações que ainda não foram sincronizadas e serão perdidas. '
                     'Conecte-se à internet e espere sincronizar para não perder nada.',
         ),
         actions: [
@@ -101,8 +103,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
       ),
     );
     if (ok != true) return;
-    await _db.disconnectAndClear();
-    await Supabase.instance.client.auth.signOut();
+    await _auth.sair();
   }
 
   Future<void> _apagarConta() async {
@@ -136,14 +137,54 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
     );
     if (ok != true) return;
     try {
-      // Servidor primeiro: se falhar (sem internet), nada local se perde.
-      await Supabase.instance.client.rpc('apagar_minha_conta');
+      // Dados primeiro: as regras do Firestore so deixam apagar enquanto o
+      // login existe. Espera o servidor; sem internet, falha aqui.
+      await apagarDadosDoUsuario(_db, usuarioAtualId);
+      await _apagarLogin();
+    } on FirebaseAuthException catch (e) {
+      final m = mensagemAuth(e);
+      if (m.isNotEmpty) _avisar(m);
     } catch (_) {
       _avisar('Não foi possível apagar agora. Verifique a internet e tente de novo.');
-      return;
     }
-    await _db.disconnectAndClear();
-    await Supabase.instance.client.auth.signOut();
+  }
+
+  /// O Firebase so apaga o login se ele for recente; se nao for, pede
+  /// para entrar de novo e tenta outra vez.
+  Future<void> _apagarLogin() async {
+    try {
+      await _auth.apagarUsuario();
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'requires-recent-login') rethrow;
+      if (_auth.entrouComGoogle) {
+        await _auth.reautenticarComGoogle();
+      } else {
+        final senha = await _pedirSenha();
+        if (senha == null) return;
+        await _auth.reautenticarComSenha(senha);
+      }
+      await _auth.apagarUsuario();
+    }
+  }
+
+  Future<String?> _pedirSenha() {
+    final controlador = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirme sua senha'),
+        content: TextField(
+          controller: controlador,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Senha'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, controlador.text), child: const Text('Continuar')),
+        ],
+      ),
+    );
   }
 
   Future<void> _renomearCategoria(Categoria c) async {
@@ -185,7 +226,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
             children: [
               Expanded(
                 child: Text(
-                  Supabase.instance.client.auth.currentUser?.email ?? '',
+                  _auth.atual?.email ?? '',
                   style: const TextStyle(color: Colors.grey),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -260,34 +301,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
           ),
           const Divider(height: 32),
           const Text('Sincronização', style: TextStyle(fontWeight: FontWeight.bold)),
-          StreamBuilder<SyncStatus>(
-            stream: _db.statusStream,
-            initialData: _db.currentStatus,
-            builder: (context, snap) {
-              final status = snap.data!;
-              final ultimo = status.lastSyncedAt?.toLocal();
-              return FutureBuilder<int>(
-                // Recalcula a cada mudanca de status (subiu algo, conectou...).
-                key: ValueKey(status),
-                future: _pendentes(),
-                builder: (context, pend) {
-                  final partes = [
-                    status.connected ? 'Conectado' : 'Sem conexão · tudo continua salvo no aparelho',
-                    if (ultimo != null)
-                      'última sincronização ${ultimo.day.toString().padLeft(2, '0')}/${ultimo.month.toString().padLeft(2, '0')} '
-                          '${ultimo.hour.toString().padLeft(2, '0')}:${ultimo.minute.toString().padLeft(2, '0')}',
-                    if ((pend.data ?? 0) > 0) '${pend.data} alterações aguardando envio',
-                  ];
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(status.connected ? Icons.cloud_done_outlined : Icons.cloud_off_outlined),
-                    title: Text(partes.first),
-                    subtitle: partes.length > 1 ? Text(partes.skip(1).join(' · ')) : null,
-                  );
-                },
-              );
-            },
-          ),
+          StatusSincronizacao(usuarioId: usuarioAtualId),
           const Divider(height: 32),
           ListTile(
             contentPadding: EdgeInsets.zero,

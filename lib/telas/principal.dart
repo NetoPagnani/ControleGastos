@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../dados/gravacao.dart';
 import 'contas.dart';
 import 'configuracoes.dart';
 import 'gastos.dart';
@@ -39,6 +40,27 @@ class TelaPrincipal extends StatefulWidget {
 class _TelaPrincipalState extends State<TelaPrincipal> {
   int _aba = 0;
   static const _larguraMinimaParaBarraLateral = 700.0;
+
+  @override
+  void initState() {
+    super.initState();
+    erroDeGravacao.addListener(_avisarErroDeGravacao);
+  }
+
+  @override
+  void dispose() {
+    erroDeGravacao.removeListener(_avisarErroDeGravacao);
+    super.dispose();
+  }
+
+  /// Gravacoes nao esperam o servidor (ver gravacao.dart); se uma falhar
+  /// depois, o aviso aparece aqui, em qualquer aba.
+  void _avisarErroDeGravacao() {
+    final texto = erroDeGravacao.value;
+    if (texto == null || !mounted) return;
+    erroDeGravacao.value = null;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
 
   Future<void> _lancar() async {
     await Navigator.of(context).push(
