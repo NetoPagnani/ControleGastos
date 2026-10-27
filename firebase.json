@@ -1,5 +1,1 @@
-{
-  "firestore": {
-    "rules": "firestore.rules"
-  }
-}
+{"firestore":{"rules":"firestore.rules"},"flutter":{"platforms":{"android":{"default":{"projectId":"controle-gastos-4a675","appId":"1:902411075500:android:9001e849e270167e8f4409","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"controle-gastos-4a675","configurations":{"android":"1:902411075500:android:9001e849e270167e8f4409","web":"1:902411075500:web:b3f8e8a89859fef88f4409"}}}}}}
