@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/erros_auth.dart';
 import '../dados/autenticacao.dart';
+import 'logo_google.dart';
 
 /// E-mail/senha e Google. O AuthGate troca esta tela pelo app (ou pela
 /// confirmacao de e-mail) assim que o Firebase confirmar o login.
@@ -174,7 +175,7 @@ class _TelaLoginState extends State<TelaLogin> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _carregando ? null : _entrarComGoogle,
-                    icon: const Icon(Icons.login),
+                    icon: const LogoGoogle(),
                     label: const Text('Entrar com Google'),
                   ),
                 ),
