@@ -81,7 +81,9 @@ ThemeData construirTema() {
       style: FilledButton.styleFrom(
         backgroundColor: corPrimaria,
         foregroundColor: corFundo,
-        minimumSize: const Size.fromHeight(50),
+        // So a altura minima: largura infinita quebra botao em linha e em dialogo.
+        // Quem precisa ocupar a largura toda fica num SizedBox(width: double.infinity).
+        minimumSize: const Size(64, 50),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 15),
       ),
@@ -89,7 +91,9 @@ ThemeData construirTema() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: corTextoForte,
-        minimumSize: const Size.fromHeight(50),
+        // So a altura minima: largura infinita quebra botao em linha e em dialogo.
+        // Quem precisa ocupar a largura toda fica num SizedBox(width: double.infinity).
+        minimumSize: const Size(64, 50),
         side: BorderSide(color: corTexto.withValues(alpha: 0.35)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 15),
