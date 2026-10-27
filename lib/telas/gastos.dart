@@ -5,11 +5,22 @@ import '../core/dinheiro.dart';
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
+import 'apagar_lancamento.dart';
 import 'editar_lancamento.dart';
 
 const nomesDosMeses = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
 ];
 
 const _diasDaSemana = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -235,28 +246,60 @@ class _ListaPorDia extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                Text('R\$ ${reais(dia.value.fold<int>(0, (s, l) => s + l.valorCentavos))}',
-                    style: const TextStyle(color: Colors.grey)),
+                Text(
+                  'R\$ ${reais(dia.value.fold<int>(0, (s, l) => s + l.valorCentavos))}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
-          for (final l in dia.value)
-            ListTile(
-              title: Text(
-                l.descricao?.isNotEmpty == true ? l.descricao! : (nomeCategoria[l.categoriaId] ?? 'Categoria'),
-              ),
-              subtitle: Text([
-                if (l.descricao?.isNotEmpty == true) nomeCategoria[l.categoriaId] ?? 'Categoria',
-                nomeConta[l.contaId] ?? 'Conta',
-                if (l.parcelasTotal > 1) 'parcela ${l.parcelaNum}/${l.parcelasTotal}',
-              ].join(' · ')),
-              trailing: Text('R\$ ${reais(l.valorCentavos)}'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => TelaEditarLancamento(lancamento: l)),
-              ),
-            ),
+          for (final l in dia.value) LinhaDeGasto(lancamento: l, nomeCategoria: nomeCategoria, nomeConta: nomeConta),
         ],
       ],
+    );
+  }
+}
+
+/// Uma linha da lista de Gastos. Toque abre a edicao; arrastar para a
+/// esquerda pede confirmacao e apaga.
+class LinhaDeGasto extends StatelessWidget {
+  const LinhaDeGasto({super.key, required this.lancamento, required this.nomeCategoria, required this.nomeConta});
+
+  final Lancamento lancamento;
+  final Map<String, String> nomeCategoria;
+  final Map<String, String> nomeConta;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = lancamento;
+    return Dismissible(
+      key: ValueKey(l.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Theme.of(context).colorScheme.error,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onError),
+      ),
+      // Sempre false: quem tira a linha da lista e o Firestore, quando o
+      // gasto some de verdade. Cancelou: a linha volta para o lugar.
+      confirmDismiss: (_) async {
+        await confirmarEApagar(context, l);
+        return false;
+      },
+      child: ListTile(
+        title: Text(l.descricao?.isNotEmpty == true ? l.descricao! : (nomeCategoria[l.categoriaId] ?? 'Categoria')),
+        subtitle: Text(
+          [
+            if (l.descricao?.isNotEmpty == true) nomeCategoria[l.categoriaId] ?? 'Categoria',
+            nomeConta[l.contaId] ?? 'Conta',
+            if (l.parcelasTotal > 1) 'parcela ${l.parcelaNum}/${l.parcelasTotal}',
+          ].join(' · '),
+        ),
+        trailing: Text('R\$ ${reais(l.valorCentavos)}'),
+        onTap: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => TelaEditarLancamento(lancamento: l))),
+      ),
     );
   }
 }

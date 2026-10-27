@@ -5,6 +5,7 @@ import '../core/dinheiro.dart';
 import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
+import 'apagar_lancamento.dart';
 
 /// Editar ou apagar um lancamento. Se for parcela, pergunta se a mudanca
 /// vale so pra esta parcela ou pra compra inteira.
@@ -31,34 +32,13 @@ class _TelaEditarLancamentoState extends State<TelaEditarLancamento> {
 
   bool get _ehParcela => widget.lancamento.parcelasTotal > 1;
 
-  /// 'uma', 'todas' ou null (cancelou).
-  Future<String?> _perguntarAlcance(String verbo) async {
-    if (!_ehParcela) return 'uma';
-    return showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Essa compra está em parcelas'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'uma'),
-            child: Text('$verbo só esta parcela'),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'todas'),
-            child: Text('$verbo todas as parcelas'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _salvar() async {
     final centavos = centavosDeTexto(_valor.text);
     if (centavos == null || centavos == 0) {
       setState(() => _erro = 'Valor inválido');
       return;
     }
-    final alcance = await _perguntarAlcance('Alterar');
+    final alcance = await perguntarAlcance(context, widget.lancamento, 'Alterar');
     if (alcance == null) return;
     final descricao = _descricao.text.trim().isEmpty ? null : _descricao.text.trim();
 
@@ -83,21 +63,8 @@ class _TelaEditarLancamentoState extends State<TelaEditarLancamento> {
   }
 
   Future<void> _apagar() async {
-    final alcance = _ehParcela
-        ? await _perguntarAlcance('Apagar')
-        : await showDialog<String>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Apagar este gasto?'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-                FilledButton(onPressed: () => Navigator.pop(context, 'uma'), child: const Text('Apagar')),
-              ],
-            ),
-          );
-    if (alcance == 'uma') await _lancamentos.apagarParcela(widget.lancamento.id);
-    if (alcance == 'todas') await _lancamentos.apagarCompra(widget.lancamento.compraId);
-    if (alcance != null && mounted) Navigator.of(context).pop();
+    final apagou = await confirmarEApagar(context, widget.lancamento);
+    if (apagou && mounted) Navigator.of(context).pop();
   }
 
   Future<void> _escolherData() async {
@@ -116,9 +83,7 @@ class _TelaEditarLancamentoState extends State<TelaEditarLancamento> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_ehParcela ? 'Parcela ${l.parcelaNum}/${l.parcelasTotal}' : 'Editar gasto'),
-        actions: [
-          IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Apagar', onPressed: _apagar),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Apagar', onPressed: _apagar)],
       ),
       body: StreamBuilder<List<Categoria>>(
         stream: _categoriasStream,
@@ -144,7 +109,9 @@ class _TelaEditarLancamentoState extends State<TelaEditarLancamento> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.event),
-                  title: Text('${_data.day.toString().padLeft(2, '0')}/${_data.month.toString().padLeft(2, '0')}/${_data.year}'),
+                  title: Text(
+                    '${_data.day.toString().padLeft(2, '0')}/${_data.month.toString().padLeft(2, '0')}/${_data.year}',
+                  ),
                   subtitle: _ehParcela ? const Text('Data desta parcela') : null,
                   onTap: _escolherData,
                 ),
