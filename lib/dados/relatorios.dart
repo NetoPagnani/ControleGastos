@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../dominio/alertas.dart';
 import '../dominio/fatura.dart';
 import '../dominio/modelos.dart';
-import 'repositorios.dart' show LancamentosRepositorio, colecaoDoUsuario, formatarData;
+import 'repositorios.dart' show LancamentosRepositorio, colecaoDoUsuario, doAparelho, formatarData;
 
 /// Resultado dos dois alertas, ja prontos para a tela de Inicio.
 class Alertas {
@@ -31,9 +31,8 @@ class RelatoriosRepositorio {
   final FirebaseFirestore _db;
   final LancamentosRepositorio _lancamentosRepo;
 
-  /// Lancamentos filtrados so por data no Firestore; o resto e somado
-  /// aqui. Assim funciona offline (as somas do proprio Firestore sempre
-  /// vao ao servidor).
+  /// Lancamentos filtrados so por data; o resto e somado aqui. Assim
+  /// funciona offline (as somas do proprio Firestore sempre vao ao servidor).
   Future<List<Lancamento>> _lancamentos({
     required String usuarioId,
     DateTime? de,
@@ -46,7 +45,10 @@ class RelatoriosRepositorio {
     if (depoisDe != null) q = q.where('data', isGreaterThan: formatarData(depoisDe));
     if (antesDe != null) q = q.where('data', isLessThan: formatarData(antesDe));
     if (ate != null) q = q.where('data', isLessThanOrEqualTo: formatarData(ate));
-    final s = await q.get();
+    // Do aparelho: o AuthGate mantem todos os lancamentos sincronizados no
+    // cache enquanto o app esta aberto, entao a conta esta completa e nao
+    // gasta leituras do plano gratis a cada vez que a tela redesenha.
+    final s = await q.get(doAparelho);
     return [for (final d in s.docs) LancamentosRepositorio.deDocumento(d)];
   }
 

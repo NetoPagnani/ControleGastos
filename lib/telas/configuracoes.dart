@@ -137,34 +137,33 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
     );
     if (ok != true) return;
     try {
-      // Dados primeiro: as regras do Firestore so deixam apagar enquanto o
-      // login existe. Espera o servidor; sem internet, falha aqui.
-      await apagarDadosDoUsuario(_db, usuarioAtualId);
-      await _apagarLogin();
+      await apagarContaCompleta(
+        reautenticar: _reautenticar,
+        apagarDados: () => apagarDadosDoUsuario(_db, usuarioAtualId),
+        apagarLogin: () async {
+          await _auth.apagarUsuario();
+          await _auth.sair();
+        },
+      );
     } on FirebaseAuthException catch (e) {
       final m = mensagemAuth(e);
       if (m.isNotEmpty) _avisar(m);
     } catch (_) {
-      _avisar('Não foi possível apagar agora. Verifique a internet e tente de novo.');
+      // Sem internet: a leitura no servidor falha antes de apagar qualquer coisa.
+      _avisar('Sem conexão com o servidor. Verifique sua internet e tente de novo.');
     }
   }
 
-  /// O Firebase so apaga o login se ele for recente; se nao for, pede
-  /// para entrar de novo e tenta outra vez.
-  Future<void> _apagarLogin() async {
-    try {
-      await _auth.apagarUsuario();
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'requires-recent-login') rethrow;
-      if (_auth.entrouComGoogle) {
-        await _auth.reautenticarComGoogle();
-      } else {
-        final senha = await _pedirSenha();
-        if (senha == null) return;
-        await _auth.reautenticarComSenha(senha);
-      }
-      await _auth.apagarUsuario();
+  /// O Firebase so apaga o login se ele for recente. Pede para entrar de
+  /// novo antes de apagar qualquer dado; cancelar aqui nao apaga nada.
+  Future<void> _reautenticar() async {
+    if (_auth.entrouComGoogle) {
+      await _auth.reautenticarComGoogle();
+      return;
     }
+    final senha = await _pedirSenha();
+    if (senha == null || senha.isEmpty) throw FirebaseAuthException(code: 'canceled');
+    await _auth.reautenticarComSenha(senha);
   }
 
   Future<String?> _pedirSenha() {

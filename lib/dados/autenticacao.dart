@@ -41,11 +41,14 @@ class Autenticacao {
     }
     try {
       final conta = await GoogleSignIn.instance.authenticate();
-      return GoogleAuthProvider.credential(idToken: conta.authentication.idToken);
+      final token = conta.authentication.idToken;
+      if (token == null) throw FirebaseAuthException(code: 'google-sem-token');
+      return GoogleAuthProvider.credential(idToken: token);
     } on GoogleSignInException catch (e) {
-      // Mesmo codigo que o mensagemAuth entende como "nao mostrar nada".
+      // canceled: mesmo codigo que o mensagemAuth entende como "nao mostrar
+      // nada". O resto (SHA-1 faltando, por exemplo) vira erro com mensagem.
       if (e.code == GoogleSignInExceptionCode.canceled) throw FirebaseAuthException(code: 'canceled');
-      rethrow;
+      throw FirebaseAuthException(code: 'google-${e.code.name}', message: e.description);
     }
   }
 

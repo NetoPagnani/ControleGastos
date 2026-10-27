@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,8 +12,8 @@ import 'login.dart';
 import 'principal.dart';
 
 /// Tres estados: sem login → tela de login; e-mail ainda nao confirmado →
-/// tela de confirmacao; confirmado → garante perfil e categorias padrao e
-/// mostra o app. So depois disso o resto das telas pode usar usuarioAtualId.
+/// tela de confirmacao; confirmado → o app (e, em segundo plano, perfil e
+/// categorias padrao). Abaixo daqui as telas ja podem usar usuarioAtualId.
 /// Quem entra com Google ja vem com o e-mail confirmado pelo Google.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -44,28 +47,40 @@ class _PreparandoConta extends StatefulWidget {
 }
 
 class _PreparandoContaState extends State<_PreparandoConta> {
-  late final Future<void> _futuro = _preparar();
+  StreamSubscription<Object?>? _sincronizacao;
+
+  @override
+  void initState() {
+    super.initState();
+    // Enquanto o app esta aberto, todos os lancamentos ficam sincronizados
+    // no cache: os relatorios leem dali (ver relatorios.dart).
+    _sincronizacao = colecaoDoUsuario(context.read<FirebaseFirestore>(), widget.usuarioId, 'lancamentos')
+        .snapshots()
+        .listen((_) {}, onError: (Object _) {});
+    // Perfil e categorias padrao em segundo plano: com internet ruim a
+    // primeira leitura pode demorar, e o app nao precisa esperar por isso.
+    unawaited(_preparar());
+  }
+
+  @override
+  void dispose() {
+    _sincronizacao?.cancel();
+    super.dispose();
+  }
 
   Future<void> _preparar() async {
     // Le tudo do context antes de qualquer await: usar o context depois
     // de um gap assincrono nao e seguro (o widget pode ja ter sumido).
     final perfil = context.read<PerfilRepositorio>();
     final categorias = context.read<CategoriasRepositorio>();
-
-    await perfil.garantirPerfil(widget.usuarioId);
-    await categorias.garantirPadroes(widget.usuarioId);
+    try {
+      await perfil.garantirPerfil(widget.usuarioId);
+      await categorias.garantirPadroes(widget.usuarioId);
+    } catch (e) {
+      debugPrint('Preparacao da conta falhou: $e');
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _futuro,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        }
-        return const TelaPrincipal();
-      },
-    );
-  }
+  Widget build(BuildContext context) => const TelaPrincipal();
 }

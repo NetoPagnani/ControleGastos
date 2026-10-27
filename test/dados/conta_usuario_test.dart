@@ -23,4 +23,29 @@ void main() {
     expect((await db.collection('usuarios').doc('u1').get()).exists, isFalse);
     expect((await colecaoDoUsuario(db, 'u2', 'contas').get()).docs, hasLength(1));
   });
+
+  group('apagarContaCompleta', () {
+    test('entra de novo antes de apagar qualquer dado', () async {
+      final ordem = <String>[];
+      await apagarContaCompleta(
+        reautenticar: () async => ordem.add('reautenticar'),
+        apagarDados: () async => ordem.add('dados'),
+        apagarLogin: () async => ordem.add('login'),
+      );
+      expect(ordem, ['reautenticar', 'dados', 'login']);
+    });
+
+    test('se o novo login falhar ou for cancelado, nada e apagado', () async {
+      final ordem = <String>[];
+      await expectLater(
+        apagarContaCompleta(
+          reautenticar: () async => throw Exception('cancelou'),
+          apagarDados: () async => ordem.add('dados'),
+          apagarLogin: () async => ordem.add('login'),
+        ),
+        throwsException,
+      );
+      expect(ordem, isEmpty);
+    });
+  });
 }

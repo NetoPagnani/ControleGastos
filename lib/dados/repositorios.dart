@@ -24,6 +24,10 @@ CollectionReference<Map<String, dynamic>> colecaoDoUsuario(FirebaseFirestore db,
 
 String _padraoUsuarioAtual() => usuarioAtualId;
 
+/// Leitura so do aparelho, para o que o app ja esta mostrando (e portanto
+/// ja esta no cache): nao espera a rede e nao gasta leituras do plano.
+const doAparelho = GetOptions(source: Source.cache);
+
 class CategoriasRepositorio {
   CategoriasRepositorio(this._db, {String Function()? usuarioAtual})
       : _usuarioAtual = usuarioAtual ?? _padraoUsuarioAtual;
@@ -45,9 +49,13 @@ class CategoriasRepositorio {
       colecaoDoUsuario(_db, usuarioId, 'categorias');
 
   /// So cria as que ainda nao existem, para nao desfazer nome editado
-  /// nem desarquivar o que a pessoa arquivou.
+  /// nem desarquivar o que a pessoa arquivou. Se a resposta veio so do
+  /// cache (sem internet), nao da para saber o que existe: nao faz nada e
+  /// tenta de novo no proximo login.
   Future<void> garantirPadroes(String usuarioId) async {
-    final existentes = (await _colecao(usuarioId).get()).docs.map((d) => d.id).toSet();
+    final atual = await _colecao(usuarioId).get();
+    if (atual.metadata.isFromCache) return;
+    final existentes = atual.docs.map((d) => d.id).toSet();
     final agora = agoraIso();
     final lote = _db.batch();
     var algum = false;
@@ -85,7 +93,7 @@ class CategoriasRepositorio {
   /// Categoria criada pela pessoa (fora das 9 padrao). Id aleatorio: nao
   /// precisa ser deterministico porque so existe depois que a pessoa pediu.
   Future<void> criar(String usuarioId, String nome) async {
-    final docs = (await _colecao(usuarioId).get()).docs;
+    final docs = (await _colecao(usuarioId).get(doAparelho)).docs;
     var maior = -1;
     for (final d in docs) {
       final ordem = d['ordem'] as int;
@@ -129,9 +137,11 @@ class PerfilRepositorio {
 
   /// Cria o perfil se ainda nao existir, sem tocar na renda se ja existir.
   /// Chamado a cada login; so o primeiro realmente grava.
+  /// Resposta so do cache (sem internet) nao prova que o perfil nao existe:
+  /// gravar ali zeraria a renda.
   Future<void> garantirPerfil(String usuarioId) async {
     final atual = await _doc(usuarioId).get();
-    if (atual.exists) return;
+    if (atual.exists || atual.metadata.isFromCache) return;
     final agora = agoraIso();
     gravarSemEsperar(_doc(usuarioId).set({
       'nome': null,
@@ -284,7 +294,7 @@ class LancamentosRepositorio {
 
   /// Apaga uma compra inteira (todas as parcelas de uma vez).
   Future<void> apagarCompra(String compraId) async {
-    final parcelas = await _colecao(_usuarioAtual()).where('compra_id', isEqualTo: compraId).get();
+    final parcelas = await _colecao(_usuarioAtual()).where('compra_id', isEqualTo: compraId).get(doAparelho);
     final lote = _db.batch();
     for (final d in parcelas.docs) {
       lote.delete(d.reference);
@@ -324,7 +334,7 @@ class LancamentosRepositorio {
     required String categoriaId,
     String? descricao,
   }) async {
-    final parcelas = await _colecao(_usuarioAtual()).where('compra_id', isEqualTo: compraId).get();
+    final parcelas = await _colecao(_usuarioAtual()).where('compra_id', isEqualTo: compraId).get(doAparelho);
     final agora = agoraIso();
     final lote = _db.batch();
     for (final d in parcelas.docs) {

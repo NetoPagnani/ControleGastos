@@ -52,6 +52,8 @@ class _TelaLoginState extends State<TelaLogin> {
       await _auth.entrarComGoogle();
     } on FirebaseAuthException catch (e) {
       _mostrarErro(e);
+    } catch (_) {
+      _mostrarErro(FirebaseAuthException(code: 'desconhecido'));
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
