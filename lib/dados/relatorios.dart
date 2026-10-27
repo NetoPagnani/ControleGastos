@@ -1,8 +1,9 @@
-import 'package:powersync/powersync.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../dominio/alertas.dart';
 import '../dominio/fatura.dart';
-import 'repositorios.dart' show LancamentosRepositorio, formatarData;
+import '../dominio/modelos.dart';
+import 'repositorios.dart' show LancamentosRepositorio, colecaoDoUsuario, formatarData;
 
 /// Resultado dos dois alertas, ja prontos para a tela de Inicio.
 class Alertas {
@@ -25,45 +26,56 @@ class FaturaAberta {
 /// faz a consulta; as decisoes (o que conta como alerta, como calcular a
 /// fatura) continuam em lib/dominio, sem depender do banco.
 class RelatoriosRepositorio {
-  RelatoriosRepositorio(this._db) : _lancamentos = LancamentosRepositorio(_db);
+  RelatoriosRepositorio(this._db) : _lancamentosRepo = LancamentosRepositorio(_db);
 
-  final PowerSyncDatabase _db;
-  final LancamentosRepositorio _lancamentos;
+  final FirebaseFirestore _db;
+  final LancamentosRepositorio _lancamentosRepo;
+
+  /// Lancamentos filtrados so por data no Firestore; o resto e somado
+  /// aqui. Assim funciona offline (as somas do proprio Firestore sempre
+  /// vao ao servidor).
+  Future<List<Lancamento>> _lancamentos({
+    required String usuarioId,
+    DateTime? de,
+    DateTime? depoisDe,
+    DateTime? antesDe,
+    DateTime? ate,
+  }) async {
+    Query<Map<String, dynamic>> q = colecaoDoUsuario(_db, usuarioId, 'lancamentos');
+    if (de != null) q = q.where('data', isGreaterThanOrEqualTo: formatarData(de));
+    if (depoisDe != null) q = q.where('data', isGreaterThan: formatarData(depoisDe));
+    if (antesDe != null) q = q.where('data', isLessThan: formatarData(antesDe));
+    if (ate != null) q = q.where('data', isLessThanOrEqualTo: formatarData(ate));
+    final s = await q.get();
+    return [for (final d in s.docs) LancamentosRepositorio.deDocumento(d)];
+  }
+
+  static int _soma(Iterable<Lancamento> ls) => ls.fold(0, (t, l) => t + l.valorCentavos);
 
   Future<Map<String, int>> somaPorCategoria({
     required String usuarioId,
     required DateTime inicio,
     required DateTime fim,
   }) async {
-    final linhas = await _db.getAll(
-      'SELECT categoria_id, SUM(valor_centavos) AS soma FROM lancamentos '
-      'WHERE usuario_id = ? AND data >= ? AND data < ? AND valor_centavos > 0 '
-      'GROUP BY categoria_id',
-      [usuarioId, formatarData(inicio), formatarData(fim)],
-    );
-    return {for (final l in linhas) l['categoria_id'] as String: l['soma'] as int};
+    final somas = <String, int>{};
+    for (final l in await _lancamentos(usuarioId: usuarioId, de: inicio, antesDe: fim)) {
+      if (l.valorCentavos <= 0) continue;
+      somas[l.categoriaId] = (somas[l.categoriaId] ?? 0) + l.valorCentavos;
+    }
+    return somas;
   }
 
   /// Soma de todos os gastos (positivos) no periodo. Estornos (negativos)
   /// abatem do total, mas nao contam como "gasto" para o percentual da renda.
   Future<int> totalPeriodo({required String usuarioId, required DateTime inicio, required DateTime fim}) async {
-    final linha = await _db.get(
-      'SELECT COALESCE(SUM(valor_centavos), 0) AS total FROM lancamentos '
-      'WHERE usuario_id = ? AND data >= ? AND data < ?',
-      [usuarioId, formatarData(inicio), formatarData(fim)],
-    );
-    return linha['total'] as int;
+    return _soma(await _lancamentos(usuarioId: usuarioId, de: inicio, antesDe: fim));
   }
 
   /// Soma das parcelas de cartao com data depois de hoje: quanto ja esta
   /// travado nos proximos meses.
   Future<int> comprometidoFuturo({required String usuarioId, required DateTime hoje}) async {
-    final linha = await _db.get(
-      'SELECT COALESCE(SUM(valor_centavos), 0) AS total FROM lancamentos '
-      'WHERE usuario_id = ? AND parcelas_total > 1 AND data > ?',
-      [usuarioId, formatarData(hoje)],
-    );
-    return linha['total'] as int;
+    final futuros = await _lancamentos(usuarioId: usuarioId, depoisDe: hoje);
+    return _soma(futuros.where((l) => l.parcelasTotal > 1));
   }
 
   /// Quantos meses antes do mes de referencia tem pelo menos um lancamento.
@@ -71,12 +83,8 @@ class RelatoriosRepositorio {
   /// nao disparar sem uma base de comparacao de verdade.
   Future<int> mesesDeHistorico({required String usuarioId, required DateTime mesReferencia}) async {
     final inicioDoMes = DateTime(mesReferencia.year, mesReferencia.month, 1);
-    final linha = await _db.get(
-      "SELECT COUNT(DISTINCT substr(data, 1, 7)) AS meses FROM lancamentos "
-      "WHERE usuario_id = ? AND data < ?",
-      [usuarioId, formatarData(inicioDoMes)],
-    );
-    return linha['meses'] as int;
+    final anteriores = await _lancamentos(usuarioId: usuarioId, antesDe: inicioDoMes);
+    return {for (final l in anteriores) formatarData(l.data).substring(0, 7)}.length;
   }
 
   /// Calcula os dois alertas de descontrole para o mes de referencia.
@@ -85,7 +93,7 @@ class RelatoriosRepositorio {
     final fimMes = DateTime(mesReferencia.year, mesReferencia.month + 1, 1);
 
     // Alerta B usa os lancamentos crus do mes (ele mesmo filtra e agrupa).
-    final lancamentosDoMes = await _lancamentos
+    final lancamentosDoMes = await _lancamentosRepo
         .observarPeriodo(usuarioId: usuarioId, inicio: inicioMes, fim: fimMes)
         .first;
     final pequenos = alertaGastosPequenosQueSomam(lancamentosDoMes);
@@ -129,13 +137,9 @@ class RelatoriosRepositorio {
       diaFechamento,
     );
 
-    final linha = await _db.get(
-      'SELECT COALESCE(SUM(valor_centavos), 0) AS total FROM lancamentos '
-      'WHERE usuario_id = ? AND conta_id = ? AND data > ? AND data <= ?',
-      [usuarioId, contaId, formatarData(fechamentoAnterior), formatarData(fechamentoAberto)],
-    );
+    final daFatura = await _lancamentos(usuarioId: usuarioId, depoisDe: fechamentoAnterior, ate: fechamentoAberto);
     return FaturaAberta(
-      totalCentavos: linha['total'] as int,
+      totalCentavos: _soma(daFatura.where((l) => l.contaId == contaId)),
       fechamento: fechamentoAberto,
       vencimento: vencimento,
     );
