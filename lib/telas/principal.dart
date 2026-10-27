@@ -16,6 +16,10 @@ const _destinos = [
   (icone: Icons.settings, rotulo: 'Config'),
 ];
 
+/// O botao de lancar gasto so aparece onde se olha os gastos: Inicio e
+/// Gastos. Nas outras abas ele cobria conteudo e nao tinha relacao com a tela.
+bool mostraBotaoLancar(int aba) => aba <= 1;
+
 const _telas = [
   TelaInicio(),
   TelaGastos(),
@@ -28,8 +32,8 @@ const _telas = [
 /// em janela larga (navegador redimensionado, tablet) usa barra lateral —
 /// mesmas telas, so o menu muda de lugar, como o Windows nativo faria.
 ///
-/// O botao de lancar gasto fica aqui, no Scaffold que envolve as 5 abas —
-/// por isso ele aparece em qualquer aba, sem precisar repetir em cada tela.
+/// O botao de lancar gasto fica aqui, no Scaffold que envolve as 5 abas,
+/// e aparece so nas abas de mostraBotaoLancar.
 class TelaPrincipal extends StatefulWidget {
   const TelaPrincipal({super.key});
 
@@ -84,7 +88,9 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         if (!telaLarga) {
           return Scaffold(
             body: conteudo,
-            floatingActionButton: FloatingActionButton(onPressed: _lancar, child: const Icon(Icons.add)),
+            floatingActionButton: mostraBotaoLancar(_aba)
+                ? FloatingActionButton(onPressed: _lancar, child: const Icon(Icons.add))
+                : null,
             bottomNavigationBar: NavigationBar(
               selectedIndex: _aba,
               onDestinationSelected: (i) => setState(() => _aba = i),
@@ -102,7 +108,9 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                 selectedIndex: _aba,
                 onDestinationSelected: (i) => setState(() => _aba = i),
                 labelType: NavigationRailLabelType.all,
-                leading: FloatingActionButton(onPressed: _lancar, child: const Icon(Icons.add)),
+                leading: mostraBotaoLancar(_aba)
+                    ? FloatingActionButton(onPressed: _lancar, child: const Icon(Icons.add))
+                    : null,
                 destinations: [
                   for (final d in _destinos) NavigationRailDestination(icon: Icon(d.icone), label: Text(d.rotulo)),
                 ],
