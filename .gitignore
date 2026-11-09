@@ -52,3 +52,6 @@ app.*.map.json
 # Pastas de ferramentas de sessao
 .superpowers/
 lib/firebase_options.dart
+
+# Cache do firebase deploy
+.firebase/
