@@ -15,6 +15,17 @@ App de gastos pessoais em Flutter (Android e Web), offline-first, com Firebase (
 3. Gere a configuração: `flutterfire configure --platforms=android,web`. Ele cria `lib/firebase_options.dart` e `android/app/google-services.json`, que ficam fora do git.
 4. `flutter run` (na Web, use sempre a mesma porta: `flutter run -d chrome --web-port 5000`).
 
+## Publicar a versão Web
+
+Fica em https://controle-gastos-4a675.web.app (Firebase Hosting, plano gratuito). Para atualizar:
+
+```bash
+flutter build web --release
+firebase deploy --only hosting
+```
+
+A política de privacidade fica em https://controle-gastos-4a675.web.app/privacidade.html.
+
 ## Publicar no Google Play
 
 ### Uma vez só
@@ -38,7 +49,7 @@ App de gastos pessoais em Flutter (Android e Web), offline-first, com Firebase (
    - upload: `keytool -list -v -keystore ~/controle-gastos-upload.jks -alias upload`
    - assinatura do Google Play: Play Console > Teste e lançamento > Integridade do app
 
-4. **Política de privacidade.** A loja pede um endereço público. O texto está em `web/privacidade.html` (e dentro do app, em Configurações). Publicando a versão Web, ela fica em `<endereço>/privacidade.html`.
+4. **Política de privacidade.** A loja pede um endereço público. O texto está em `web/privacidade.html` (e dentro do app, em Configurações). Ela fica em https://controle-gastos-4a675.web.app/privacidade.html.
 
 ### A cada versão
 
