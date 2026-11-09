@@ -6,6 +6,7 @@ import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
 import 'contas.dart';
+import 'largura_limitada.dart';
 
 /// Lancar um gasto: valor -> categoria -> conta. 3 toques no caminho feliz.
 class TelaLancarGasto extends StatefulWidget {
@@ -87,11 +88,13 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
           onPressed: () => Navigator.of(context).pop(false),
         ),
       ),
-      body: switch (_etapa) {
-        0 => _passoValor(),
-        1 => _passoCategoria(),
-        _ => _passoConta(),
-      },
+      body: LarguraLimitada(
+        child: switch (_etapa) {
+          0 => _passoValor(),
+          1 => _passoCategoria(),
+          _ => _passoConta(),
+        },
+      ),
     );
   }
 

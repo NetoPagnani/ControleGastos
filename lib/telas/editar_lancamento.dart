@@ -6,6 +6,7 @@ import '../core/usuario_atual.dart';
 import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
 import 'apagar_lancamento.dart';
+import 'largura_limitada.dart';
 
 /// Editar ou apagar um lancamento. Se for parcela, pergunta se a mudanca
 /// vale so pra esta parcela ou pra compra inteira.
@@ -85,70 +86,72 @@ class _TelaEditarLancamentoState extends State<TelaEditarLancamento> {
         title: Text(_ehParcela ? 'Parcela ${l.parcelaNum}/${l.parcelasTotal}' : 'Editar gasto'),
         actions: [IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Apagar', onPressed: _apagar)],
       ),
-      body: StreamBuilder<List<Categoria>>(
-        stream: _categoriasStream,
-        builder: (context, catSnap) => StreamBuilder<List<Conta>>(
-          stream: _contasStream,
-          builder: (context, contaSnap) {
-            final categorias = catSnap.data ?? const <Categoria>[];
-            final contas = contaSnap.data ?? const <Conta>[];
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                TextField(
-                  controller: _valor,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                  decoration: InputDecoration(
-                    labelText: _ehParcela ? 'Valor desta parcela' : 'Valor',
-                    prefixText: 'R\$ ',
-                    errorText: _erro,
-                    helperText: 'Negativo para estorno',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event),
-                  title: Text(
-                    '${_data.day.toString().padLeft(2, '0')}/${_data.month.toString().padLeft(2, '0')}/${_data.year}',
-                  ),
-                  subtitle: _ehParcela ? const Text('Data desta parcela') : null,
-                  onTap: _escolherData,
-                ),
-                const SizedBox(height: 12),
-                _Seletor(
-                  rotulo: 'Categoria',
-                  valor: _categoriaId,
-                  opcoes: {for (final c in categorias) c.id: c.nome},
-                  aoMudar: (v) => setState(() => _categoriaId = v),
-                ),
-                const SizedBox(height: 12),
-                _Seletor(
-                  rotulo: 'Conta',
-                  valor: _contaId,
-                  opcoes: {for (final c in contas) c.id: c.apelido},
-                  aoMudar: (v) => setState(() => _contaId = v),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _descricao,
-                  decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
-                  textCapitalization: TextCapitalization.sentences,
-                ),
-                if (_ehParcela)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12),
-                    child: Text(
-                      'Ao alterar todas as parcelas, só categoria, conta e descrição mudam. '
-                      'Valor e data continuam os de cada parcela.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+      body: LarguraLimitada(
+        child: StreamBuilder<List<Categoria>>(
+          stream: _categoriasStream,
+          builder: (context, catSnap) => StreamBuilder<List<Conta>>(
+            stream: _contasStream,
+            builder: (context, contaSnap) {
+              final categorias = catSnap.data ?? const <Categoria>[];
+              final contas = contaSnap.data ?? const <Conta>[];
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  TextField(
+                    controller: _valor,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    decoration: InputDecoration(
+                      labelText: _ehParcela ? 'Valor desta parcela' : 'Valor',
+                      prefixText: 'R\$ ',
+                      errorText: _erro,
+                      helperText: 'Negativo para estorno',
                     ),
                   ),
-                const SizedBox(height: 24),
-                FilledButton(onPressed: _salvar, child: const Text('Salvar')),
-              ],
-            );
-          },
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event),
+                    title: Text(
+                      '${_data.day.toString().padLeft(2, '0')}/${_data.month.toString().padLeft(2, '0')}/${_data.year}',
+                    ),
+                    subtitle: _ehParcela ? const Text('Data desta parcela') : null,
+                    onTap: _escolherData,
+                  ),
+                  const SizedBox(height: 12),
+                  _Seletor(
+                    rotulo: 'Categoria',
+                    valor: _categoriaId,
+                    opcoes: {for (final c in categorias) c.id: c.nome},
+                    aoMudar: (v) => setState(() => _categoriaId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  _Seletor(
+                    rotulo: 'Conta',
+                    valor: _contaId,
+                    opcoes: {for (final c in contas) c.id: c.apelido},
+                    aoMudar: (v) => setState(() => _contaId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _descricao,
+                    decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  if (_ehParcela)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Text(
+                        'Ao alterar todas as parcelas, só categoria, conta e descrição mudam. '
+                        'Valor e data continuam os de cada parcela.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  FilledButton(onPressed: _salvar, child: const Text('Salvar')),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
