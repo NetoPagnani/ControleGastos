@@ -7,6 +7,7 @@ import '../dados/repositorios.dart';
 import '../dominio/modelos.dart';
 import 'contas.dart';
 import 'largura_limitada.dart';
+import 'teclado_de_valor.dart';
 
 /// Lancar um gasto: valor -> categoria -> conta. 3 toques no caminho feliz.
 class TelaLancarGasto extends StatefulWidget {
@@ -55,6 +56,10 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
     });
   }
 
+  void _continuarDoValor() {
+    if (_centavos > 0) setState(() => _etapa = 1);
+  }
+
   Future<void> _confirmar() async {
     await _lancamentos.lancarCompra(
       usuarioId: usuarioAtualId,
@@ -99,7 +104,6 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
   }
 
   Widget _passoValor() {
-    const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
     // Nada de Expanded no topo: numa janela baixa isso estourava a altura
     // (overflow). O teclado agora fica dentro de um Expanded que pode
     // encolher — e, se precisar, ele mesmo rola, a tela nunca mais quebra.
@@ -120,32 +124,14 @@ class _TelaLancarGastoState extends State<TelaLancarGasto> {
             ),
           ),
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 3,
-              childAspectRatio: 1.7,
-              children: [
-                for (final t in teclas)
-                  t.isEmpty
-                      ? const SizedBox.shrink()
-                      : InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => _apertarTecla(t),
-                          child: Center(
-                            child: Text(
-                              t,
-                              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-              ],
-            ),
+            child: TecladoDeValor(onTecla: _apertarTecla, onConfirmar: _continuarDoValor),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _centavos > 0 ? () => setState(() => _etapa = 1) : null,
+                onPressed: _centavos > 0 ? _continuarDoValor : null,
                 child: const Text('Continuar'),
               ),
             ),
