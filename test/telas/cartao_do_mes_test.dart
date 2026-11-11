@@ -32,7 +32,9 @@ void main() {
     expect(find.textContaining('entrou 3.000,00 · gastou 800,00 · sobra 2.200,00'), findsOneWidget);
     expect(find.textContaining('sobra -100,00'), findsOneWidget);
     expect(find.textContaining('Cartões de crédito: gastou 1.200,00'), findsOneWidget);
-    expect(find.textContaining('entrou 3.600,00 · gastou 2.700,00 · sobra 900,00'), findsOneWidget);
+    // Cartao (1.200) fora da sobra: 3.600 - 800 - 700.
+    expect(find.textContaining('entrou 3.600,00 · gastou 1.500,00 · sobra 2.100,00'), findsOneWidget);
+    expect(find.textContaining('fora da sobra'), findsOneWidget);
   });
 
   testWidgets('sem entradas do mes, pede para informar', (tester) async {

@@ -27,13 +27,18 @@ class ResumoDoMes {
   /// Contas que recebem dinheiro (tudo menos cartao de credito).
   final List<SobraDaConta> contas;
 
-  /// Cartao de credito nao recebe entrada: o app nao sabe de qual conta a
-  /// fatura vai ser paga, entao o gasto dele so pesa na sobra total.
+  /// Cartao de credito e outra coisa: a fatura e paga a parte (no comeco do
+  /// mes seguinte), entao o gasto dele aparece separado e nao desconta da sobra.
   final int gastoCartoes;
   final int entrouTotal;
+
+  /// Tudo o que foi gasto no mes, cartao incluido.
   final int gastouTotal;
 
-  int get sobraTotal => entrouTotal - gastouTotal;
+  /// O que saiu das contas (tudo menos cartao): e o que desconta da sobra.
+  int get gastouContas => gastouTotal - gastoCartoes;
+
+  int get sobraTotal => entrouTotal - gastouContas;
 }
 
 ResumoDoMes resumoDoMes({

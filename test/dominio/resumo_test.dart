@@ -55,8 +55,12 @@ void main() {
       expect(r.gastoCartoes, 100000);
     });
 
-    test('total soma entradas e todos os gastos', () {
-      expect([r.entrouTotal, r.gastouTotal, r.sobraTotal], [360000, 230000, 130000]);
+    test('cartao de credito nao desconta da sobra: e pago a parte, pela fatura', () {
+      expect([r.entrouTotal, r.gastouContas, r.sobraTotal], [360000, 130000, 230000]);
+    });
+
+    test('gasto total do mes ainda inclui o cartao', () {
+      expect(r.gastouTotal, 230000);
     });
 
     test('gasto em conta arquivada entra no total', () {
@@ -65,7 +69,7 @@ void main() {
         entradas: const {'itau': 1000},
         lancamentos: [gasto('antiga', 300)],
       );
-      expect([comArquivada.gastouTotal, comArquivada.sobraTotal], [300, 700]);
+      expect([comArquivada.gastouContas, comArquivada.sobraTotal], [300, 700]);
     });
   });
 

@@ -25,7 +25,7 @@ class CartaoDoMes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentual = percentualDaRenda(resumo.gastouTotal, resumo.entrouTotal);
+    final percentual = percentualDaRenda(resumo.gastouContas, resumo.entrouTotal);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -52,11 +52,14 @@ class CartaoDoMes extends StatelessWidget {
               if (resumo.gastoCartoes != 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text('Cartões de crédito: gastou ${reais(resumo.gastoCartoes)}'),
+                  child: Text(
+                    'Cartões de crédito: gastou ${reais(resumo.gastoCartoes)} · fora da sobra, pago na fatura',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ),
               const Divider(height: 20),
               _textoDaSobra(
-                'Total: entrou ${reais(resumo.entrouTotal)} · gastou ${reais(resumo.gastouTotal)} · '
+                'Total: entrou ${reais(resumo.entrouTotal)} · gastou ${reais(resumo.gastouContas)} · '
                 'sobra ${reais(resumo.sobraTotal)}',
                 resumo.sobraTotal,
                 negrito: true,
