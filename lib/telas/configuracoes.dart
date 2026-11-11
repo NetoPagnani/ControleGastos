@@ -8,7 +8,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../core/dinheiro.dart';
 import '../core/erros_auth.dart';
 import '../core/usuario_atual.dart';
 import '../dados/autenticacao.dart';
@@ -28,23 +27,12 @@ class TelaConfiguracoes extends StatefulWidget {
 }
 
 class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
-  late final _perfil = context.read<PerfilRepositorio>();
   late final _categorias = context.read<CategoriasRepositorio>();
-  final _rendaController = TextEditingController();
   final _novaCategoriaController = TextEditingController();
 
   late final _db = context.read<FirebaseFirestore>();
   late final _auth = context.read<Autenticacao>();
   late final _versao = PackageInfo.fromPlatform();
-
-  Future<void> _salvarRenda() async {
-    final centavos = centavosDeTexto(_rendaController.text);
-    if (centavos == null || centavos < 0) return;
-    await _perfil.definirRendaCentavos(usuarioAtualId, centavos);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Renda salva')));
-    }
-  }
 
   Future<void> _criarCategoria() async {
     final nome = _novaCategoriaController.text.trim();
@@ -234,36 +222,6 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
             ],
           ),
           const Divider(height: 24),
-          const Text('Renda mensal de referência', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text(
-            'Não é lançamento, é só um número pra calcular o quanto você já comprometeu no mês.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          StreamBuilder<int>(
-            stream: _perfil.observarRendaCentavos(usuarioAtualId),
-            builder: (context, snap) {
-              final atual = snap.data ?? 0;
-              if (_rendaController.text.isEmpty && atual > 0) {
-                _rendaController.text = (atual / 100).toStringAsFixed(2);
-              }
-              return Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _rendaController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(prefixText: 'R\$ '),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(onPressed: _salvarRenda, child: const Text('Salvar')),
-                ],
-              );
-            },
-          ),
-          const Divider(height: 32),
           const Text('Categorias', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Row(

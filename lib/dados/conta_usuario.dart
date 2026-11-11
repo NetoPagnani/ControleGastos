@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'repositorios.dart' show colecaoDoUsuario;
 
-const _subcolecoes = ['contas', 'categorias', 'lancamentos', 'recorrencias'];
+const _subcolecoes = ['contas', 'categorias', 'lancamentos', 'recorrencias', 'entradas'];
 
 /// O Firestore aceita no maximo 500 operacoes por lote.
 const _tamanhoDoLote = 500;

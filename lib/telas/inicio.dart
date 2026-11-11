@@ -9,6 +9,8 @@ import '../dados/repositorios.dart';
 import '../dominio/alertas.dart';
 import '../dominio/modelos.dart';
 import '../dominio/resumo.dart';
+import 'cartao_do_mes.dart';
+import 'gastos.dart' show nomesDosMeses;
 
 String _reais(int centavos) => reais(centavos);
 
@@ -39,13 +41,13 @@ class _TelaInicioState extends State<TelaInicio> {
       body: StreamBuilder<List<Lancamento>>(
         stream: _lancamentos.observarPeriodo(usuarioId: usuarioAtualId, inicio: inicioMes, fim: fimMes),
         builder: (context, lancSnap) {
-          final totalMes = (lancSnap.data ?? const <Lancamento>[])
-              .fold<int>(0, (soma, l) => soma + l.valorCentavos);
+          final doMes = lancSnap.data ?? const <Lancamento>[];
+          final totalMes = doMes.fold<int>(0, (soma, l) => soma + l.valorCentavos);
 
-          return StreamBuilder<int>(
-            stream: _perfil.observarRendaCentavos(usuarioAtualId),
-            builder: (context, rendaSnap) {
-              final renda = rendaSnap.data ?? 0;
+          return StreamBuilder<Map<String, Map<String, int>>>(
+            stream: _perfil.observarEntradas(usuarioAtualId),
+            builder: (context, entradasSnap) {
+              final entradas = entradasDoMes(entradasSnap.data ?? const {}, chaveDoMes(agora));
 
               return StreamBuilder<List<Categoria>>(
                 stream: _categorias.observarAtivas(usuarioAtualId),
@@ -57,9 +59,9 @@ class _TelaInicioState extends State<TelaInicio> {
                   return StreamBuilder<List<Conta>>(
                     stream: _contas.observarAtivas(usuarioAtualId),
                     builder: (context, contasSnap) {
-                      final cartoes = (contasSnap.data ?? const <Conta>[])
-                          .where((c) => c.tipo == 'cartao_credito')
-                          .toList();
+                      final contas = contasSnap.data ?? const <Conta>[];
+                      final cartoes = contas.where((c) => c.tipo == 'cartao_credito').toList();
+                      final nomeDoMes = nomesDosMeses[agora.month - 1].toLowerCase();
 
                       return ListView(
                         padding: const EdgeInsets.all(16),
@@ -67,7 +69,17 @@ class _TelaInicioState extends State<TelaInicio> {
                         // muda de total — os StreamBuilders de cima ja cuidam do resto.
                         key: ValueKey(totalMes),
                         children: [
-                          _resumoDoMes(totalMes, renda),
+                          CartaoDoMes(
+                            nomeDoMes: nomeDoMes,
+                            resumo: resumoDoMes(
+                              contas: contas,
+                              // Mes ainda nao informado: so mostra o pedido, sem somar a sugestao.
+                              entradas: entradas.informado ? entradas.valores : const {},
+                              lancamentos: doMes,
+                            ),
+                            informado: entradas.informado,
+                            onInformar: () => _informarEntradas(nomeDoMes, contas, entradas.valores, agora),
+                          ),
                           const SizedBox(height: 16),
                           FutureBuilder<Alertas>(
                             future: _relatorios.calcularAlertas(usuarioId: usuarioAtualId, mesReferencia: agora),
@@ -108,35 +120,9 @@ class _TelaInicioState extends State<TelaInicio> {
     );
   }
 
-  Widget _resumoDoMes(int totalMes, int renda) {
-    final percentual = percentualDaRenda(totalMes, renda);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('R\$ ${_reais(totalMes)}', style: estiloValorGrande(tamanho: 28)),
-            const Text('gastos este mês', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 6),
-            if (percentual == null)
-              const Text('Cadastre sua renda em Configurações para ver o percentual comprometido.')
-            else ...[
-              Text('${percentual.toStringAsFixed(0)}% da sua renda de referência'),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: (percentual / 100).clamp(0, 1),
-                  minHeight: 8,
-                  color: percentual >= 100 ? corAlerta : corAviso,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+  Future<void> _informarEntradas(String nomeDoMes, List<Conta> contas, Map<String, int> sugeridas, DateTime mes) async {
+    final valores = await pedirEntradas(context, nomeDoMes: nomeDoMes, contas: contas, sugeridas: sugeridas);
+    if (valores != null) await _perfil.definirEntradas(usuarioAtualId, chaveDoMes(mes), valores);
   }
 
   Widget _cartaoAlertaPadrao(AlertaPadrao a, Map<String, String> nomeCategoria) {

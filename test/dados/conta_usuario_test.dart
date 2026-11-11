@@ -12,12 +12,13 @@ void main() {
     await colecaoDoUsuario(db, 'u1', 'contas').doc('c').set({'apelido': 'x'});
     await colecaoDoUsuario(db, 'u1', 'categorias').doc('k').set({'nome': 'x'});
     await colecaoDoUsuario(db, 'u1', 'recorrencias').doc('r').set({'descricao': 'x'});
+    await colecaoDoUsuario(db, 'u1', 'entradas').doc('2026-11').set({'contas': {'itau': 1}});
     await db.collection('usuarios').doc('u1').set({'renda_mensal_centavos': 1});
     await colecaoDoUsuario(db, 'u2', 'contas').doc('c').set({'apelido': 'y'});
 
     await apagarDadosDoUsuario(db, 'u1');
 
-    for (final nome in ['contas', 'categorias', 'lancamentos', 'recorrencias']) {
+    for (final nome in ['contas', 'categorias', 'lancamentos', 'recorrencias', 'entradas']) {
       expect((await colecaoDoUsuario(db, 'u1', nome).get()).docs, isEmpty, reason: nome);
     }
     expect((await db.collection('usuarios').doc('u1').get()).exists, isFalse);

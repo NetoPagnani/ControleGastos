@@ -11,7 +11,7 @@ O Controle de Gastos guarda apenas o que você digita nele, para que você veja 
 
 O que é coletado
 • E-mail e identificador da sua conta, usados para login (e-mail e senha ou Google).
-• Os dados que você cadastra: gastos (valor, data, categoria, conta, descrição), contas e cartões (apelido, limite, dias de fechamento e vencimento), categorias e a renda mensal de referência.
+• Os dados que você cadastra: gastos (valor, data, categoria, conta, descrição), contas e cartões (apelido, limite, dias de fechamento e vencimento), categorias e quanto entrou em cada conta por mês.
 
 O app não acessa sua conta bancária, não lê SMS, notificações, contatos ou localização, e não exibe anúncios.
 

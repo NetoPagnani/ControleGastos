@@ -71,15 +71,28 @@ void main() {
     expect((await categorias.observarAtivas('u1').first).last.nome, 'Pets');
   });
 
-  test('renda: 0 sem perfil, depois o valor definido', () async {
-    expect(await perfil.observarRendaCentavos('u1').first, 0);
+  test('entradas: vazio sem perfil; cada mes guarda os proprios valores', () async {
+    expect(await perfil.observarEntradas('u1').first, isEmpty);
     await perfil.garantirPerfil('u1');
     await assentar();
-    await perfil.definirRendaCentavos('u1', 500000);
+    await perfil.definirEntradas('u1', '2026-10', {'itau': 300000, 'vr': 60000});
     await assentar();
-    await perfil.garantirPerfil('u1'); // nao zera
+    await perfil.definirEntradas('u1', '2026-11', {'itau': 350000});
     await assentar();
-    expect(await perfil.observarRendaCentavos('u1').first, 500000);
+    await perfil.garantirPerfil('u1'); // nao apaga
+    await assentar();
+    expect(await perfil.observarEntradas('u1').first, {
+      '2026-10': {'itau': 300000, 'vr': 60000},
+      '2026-11': {'itau': 350000},
+    });
+  });
+
+  test('entradas: informar de novo o mesmo mes substitui, sem sobrar conta antiga', () async {
+    await perfil.definirEntradas('u1', '2026-11', {'itau': 300000, 'vr': 60000});
+    await assentar();
+    await perfil.definirEntradas('u1', '2026-11', {'itau': 310000});
+    await assentar();
+    expect((await perfil.observarEntradas('u1').first)['2026-11'], {'itau': 310000});
   });
 
   test('conta: editar muda os dados; arquivada sai das ativas e fica nos nomes', () async {

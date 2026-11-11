@@ -145,23 +145,29 @@ class PerfilRepositorio {
     final agora = agoraIso();
     gravarSemEsperar(_doc(usuarioId).set({
       'nome': null,
-      'renda_mensal_centavos': 0,
       'criado_em': agora,
       'atualizado_em': agora,
     }, SetOptions(merge: true)));
   }
 
-  /// Renda de referencia. Nao e transacao, so um numero que a pessoa ajusta
-  /// quando muda de salario; destrava o percentual comprometido no Inicio.
-  Stream<int> observarRendaCentavos(String usuarioId) {
-    return _doc(usuarioId).snapshots().map((d) => (d.data()?['renda_mensal_centavos'] as int?) ?? 0);
+  /// Quanto entrou em cada conta, por mes: {'2026-11': {contaId: centavos}}.
+  /// Nao sao lancamentos, so os valores que a pessoa informa no Inicio para
+  /// ver quanto sobra em cada conta. Um documento por mes em
+  /// usuarios/{uid}/entradas/{AAAA-MM}.
+  Stream<Map<String, Map<String, int>>> observarEntradas(String usuarioId) {
+    return colecaoDoUsuario(_db, usuarioId, 'entradas').snapshots().map((s) => {
+          for (final d in s.docs)
+            d.id: {
+              for (final c in ((d.data()['contas'] as Map<String, dynamic>?) ?? const {}).entries) c.key: c.value as int,
+            },
+        });
   }
 
-  Future<void> definirRendaCentavos(String usuarioId, int centavos) async {
-    gravarSemEsperar(_doc(usuarioId).set(
-      {'renda_mensal_centavos': centavos, 'atualizado_em': agoraIso()},
-      SetOptions(merge: true),
-    ));
+  /// Substitui as entradas do [mes] inteiro: conta que ficou de fora some.
+  Future<void> definirEntradas(String usuarioId, String mes, Map<String, int> valores) async {
+    gravarSemEsperar(
+      colecaoDoUsuario(_db, usuarioId, 'entradas').doc(mes).set({'contas': valores, 'atualizado_em': agoraIso()}),
+    );
   }
 }
 
