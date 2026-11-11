@@ -1,4 +1,4 @@
-# [Controle de Gastos].(https://controle-gastos-4a675.web.app/)
+# [Controle de Gastos](https://controle-gastos-4a675.web.app/)
 
 App de gastos pessoais em Flutter (Android e Web), offline-first, com Firebase (Authentication para o login e Cloud Firestore para os dados, que já guarda uma cópia no aparelho e sincroniza sozinho). Spec e plano em `docs/superpowers/`.
 
